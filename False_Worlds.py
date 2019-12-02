@@ -527,8 +527,9 @@ class App:
                                  (int(x - 0.3), int(y + 1.85), int(z - 0.3)))
                 if new_block not in self.world and new_block not in player_hitbox and self.selected_block is not None:
                     self.place_delay = 0.25
+                    visible_blocks = ["right", "left", "top", "bottom", "front", "back"]
                     bx, by, bz = new_block
-                    side_values = {"left": (bx + 1, by, bz), "down": (bx, by + 1, bz), "back": (bx, by, bz + 1),
+                    side_values = {"left": (bx + 1, by, bz), "bottom": (bx, by + 1, bz), "back": (bx, by, bz + 1),
                                    "right": (bx - 1, by, bz), "top": (bx, by - 1, bz), "front": (bx, by, bz - 1)}
                     for side in side_values:
                         x, y, z = side_values[side]
@@ -543,6 +544,18 @@ class App:
                                     ), 0
                                 )
                                 self.cubes[self.world[(x, y, z)][0]].vaos[side].instance_update()
+                                if side == "right":
+                                    visible_blocks.remove("left")
+                                elif side == "left":
+                                    visible_blocks.remove("right")
+                                elif side == "top":
+                                    visible_blocks.remove("bottom")
+                                elif side == "bottom":
+                                    visible_blocks.remove("top")
+                                elif side == "front":
+                                    visible_blocks.remove("back")
+                                elif side == "back":
+                                    visible_blocks.remove("front")
                     self.highlighted = tuple(self.highlighted)
                     side = ""
                     side_value = [int(new_block[axis] - self.highlighted[axis]) for axis in range(3)]
@@ -569,7 +582,7 @@ class App:
                     )
                     self.cubes[self.world[self.highlighted][0]].vaos[side].instance_update()
                     self.highlighted = None
-                    self.world[new_block] = [self.selected_block, ["right", "left", "top", "bottom", "front", "back"]]
+                    self.world[new_block] = [self.selected_block, visible_blocks]
                     for side in self.world[new_block][1]:
                         if len(self.cubes[self.selected_block].vaos[side].instance_data) > 0:
                             self.cubes[self.selected_block].vaos[side].instance_data = numpy.append(
