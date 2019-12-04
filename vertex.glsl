@@ -1,8 +1,8 @@
 #version 330
 
-in layout(location = 0) vec3 a_position;
-in layout(location = 1) vec2 a_texture;
-in layout(location = 2) vec3 a_offset;
+layout(location = 0) in vec3 a_position;
+layout(location = 1) in vec2 a_texture;
+layout(location = 2) in vec3 a_offset;
 
 uniform mat4 model;
 uniform mat4 view;

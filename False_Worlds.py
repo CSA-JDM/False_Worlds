@@ -63,6 +63,54 @@ CUBE_INDICES_EDGES = numpy.array([0, 1, 2, 3,
                                   12, 13, 14, 15,
                                   16, 17, 18, 19,
                                   20, 21, 22, 23], dtype=numpy.uint32)
+CHARACTER_DICT = {
+    "a": (((8, 48), (5, 5)), ((8, 32), (5, 7))),
+    "b": (((16, 48), (5, 7)), ((16, 32), (5, 7))),
+    "c": (((24, 48), (5, 5)), ((24, 32), (5, 7))),
+    "d": (((32, 48), (5, 7)), ((32, 32), (5, 7))),
+    "e": (((40, 48), (5, 5)), ((40, 32), (5, 7))),
+    "f": (((48, 48), (4, 7)), ((48, 32), (5, 7))),
+    "g": (((56, 48), (5, 6)), ((56, 32), (5, 7))),
+    "h": (((64, 48), (5, 7)), ((64, 32), (5, 7))),
+    "i": (((72, 48), (1, 7)), ((72, 32), (3, 7))),
+    "j": (((80, 48), (5, 8)), ((80, 32), (5, 7))),
+    "k": (((88, 48), (4, 7)), ((88, 32), (5, 7))),
+    "l": (((96, 48), (2, 7)), ((96, 32), (5, 7))),
+    "m": (((104, 48), (5, 5)), ((104, 32), (5, 7))),
+    "n": (((112, 48), (5, 5)), ((112, 32), (5, 7))),
+    "o": (((120, 48), (5, 5)), ((120, 32), (5, 7))),
+    "p": (((0, 56), (5, 6)), ((0, 40), (5, 7))),  # temporary capital size values (5, 7)
+    "q": (((8, 56), (5, 6)), ((8, 40), (5, 7))),  # temporary capital size values (5, 7)
+    "r": (((16, 56), (5, 5)), ((16, 40), (5, 7))),  # temporary capital size values (5, 7)
+    "s": (((24, 56), (5, 5)), ((24, 40), (5, 7))),  # temporary capital size values (5, 7)
+    "t": (((32, 56), (3, 7)), ((32, 40), (5, 7))),  # temporary capital size values (5, 7)
+    "u": (((40, 56), (5, 5)), ((40, 40), (5, 7))),  # temporary capital size values (5, 7)
+    "v": (((48, 56), (5, 5)), ((48, 40), (5, 7))),  # temporary capital size values (5, 7)
+    "w": (((56, 56), (5, 5)), ((56, 40), (5, 7))),  # temporary capital size values (5, 7)
+    "x": (((64, 56), (5, 5)), ((64, 40), (5, 7))),  # temporary capital size values (5, 7)
+    "y": (((72, 56), (5, 6)), ((72, 40), (5, 7))),  # temporary capital size values (5, 7)
+    "z": (((80, 56), (5, 5)), ((80, 40), (5, 7))),  # temporary capital size values (5, 7)
+}
+SPECIAL_CHARACTER_DICT = {
+    ".": ((112, 16), (1, 2)),
+    ">": ((112, 24), (4, 7)),
+    ",": ((96, 16), (1, 3)),
+    "<": ((96, 24), (4, 7)),
+    "-": ((104, 16), (5, 1)),
+    "*": ((80, 16), (4, 3)),
+    ":": ((80, 24), (1, 6)),
+    "0": ((0, 24), (5, 7)),
+    "1": ((8, 24), (5, 7)),
+    "2": ((16, 24), (5, 7)),
+    "3": ((24, 24), (5, 7)),
+    "4": ((32, 24), (5, 7)),
+    "5": ((40, 24), (5, 7)),
+    "6": ((48, 24), (5, 7)),
+    "7": ((56, 24), (5, 7)),
+    "8": ((64, 24), (5, 7)),
+    "9": ((72, 24), (5, 7))
+}
+ASCII_PNG = Image.open("textures/ascii.png")
 
 
 class App:
@@ -109,25 +157,25 @@ class App:
         self.break_delay = 0
         self.fly_delay = 0
         self.air_velocity = 0
-        self.time_p = glfw.get_time()
+        self.time_p = glfw.get_timer_value()
         shader = compileProgram(compileShader(open("vertex.glsl", "r").read(), GL_VERTEX_SHADER),
                                 compileShader(open("fragment.glsl", "r").read(), GL_FRAGMENT_SHADER))
         self.projection_loc = glGetUniformLocation(shader, "projection")
         self.model_loc = glGetUniformLocation(shader, "model")
         self.view_loc = glGetUniformLocation(shader, "view")
+        self.camera = Camera(self)
+        self.vaos_3d = dict()
+        self.vaos_2d = dict()
+        block_break = list()
         # endregion
 
-        self.camera = Camera(self)
-        self.cubes = dict()
-        self.cubes["grass"] = Cube(["textures/grass_side.png"] * 2 + ["textures/blocks/dirt.png"] +
-                                   ["textures/grass_top.png"] + ["textures/grass_side.png"] * 2)
+        self.vaos_3d["grass"] = Cube(["textures/grass_side.png"] * 2 + ["textures/blocks/dirt.png"] +
+                                     ["textures/grass_top.png"] + ["textures/grass_side.png"] * 2)
         highlighted_vao = VAO("textures/black.png", HIGHLIGHTED_CUBE, CUBE_INDICES_EDGES)
         for block in os.listdir("./textures/blocks"):
-            self.cubes[block.split(".")[0]] = Cube([f"textures/blocks/{block}"] * 6)
-        block_break = list()
+            self.vaos_3d[block.split(".")[0]] = Cube([f"textures/blocks/{block}"] * 6)
         for stage in range(10):
             block_break.append(VAO.load_texture(f"textures/destroy_stage_{stage}.png"))
-
         glUseProgram(shader)
         glClearColor(135.0 / 255.0, 206.0 / 255.0, 235.0 / 255.0, 1.0)
         glEnable(GL_CULL_FACE)
@@ -139,15 +187,14 @@ class App:
         translation = pyrr.matrix44.create_from_translation([0.0, -1.65, 0.0])
         glUniformMatrix4fv(self.projection_loc, 1, GL_FALSE, projection)
         glUniformMatrix4fv(self.model_loc, 1, GL_FALSE, translation)
-
         self.game_init()
 
         while not glfw.window_should_close(self.window):
             glfw.poll_events()
 
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            time_n = glfw.get_time()
-            time_s = time_n - self.time_p
+            time_n = glfw.get_timer_value()
+            time_s = (time_n - self.time_p) / 10000000
             self.time_p = time_n
             self.do_movement(time_s)
             self.mouse_button_check(time_s)
@@ -175,7 +222,7 @@ class App:
                 self.highlighted = None
             # endregion
             glUniformMatrix4fv(self.view_loc, 1, GL_FALSE, view)
-            for cube in self.cubes.values():
+            for cube in self.vaos_3d.values():
                 for vao in cube.vaos.values():
                     glBindVertexArray(vao.vao)
                     if vao.instance_data is not None:
@@ -208,6 +255,9 @@ class App:
             glfw.swap_buffers(self.window)
 
         glfw.terminate()
+
+    def main_menu(self):
+        pass
 
     def game_init(self):
         glfw.set_input_mode(self.window, glfw.CURSOR, glfw.CURSOR_DISABLED)
@@ -277,7 +327,7 @@ class App:
                 #                   ("t2f", (0, 0, 1, 0, 1, 1, 0, 1)))
         for cube in instances:
             for side in instances[cube]:
-                self.cubes[cube].vaos[side].instance_update(instances[cube][side])
+                self.vaos_3d[cube].vaos[side].instance_update(instances[cube][side])
         self.camera.camera_pos[1] = self.y_values[64][64] + 1
 
     def mouse_callback(self, window, dx, dy):
@@ -468,16 +518,16 @@ class App:
                     px, py, pz = int(px), int(py), int(pz)
                     self.highlighted = tuple(self.highlighted)
                     for side in self.world[self.highlighted][1]:
-                        self.cubes[self.world[self.highlighted][0]].vaos[side].instance_data = numpy.delete(
-                            self.cubes[self.world[self.highlighted][0]].vaos[side].instance_data,
-                            numpy.where((self.cubes[self.world[self.highlighted][0]].vaos[side].instance_data[:, 0] ==
+                        self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data = numpy.delete(
+                            self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data,
+                            numpy.where((self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data[:, 0] ==
                                          self.highlighted[0]) &
-                                        (self.cubes[self.world[self.highlighted][0]].vaos[side].instance_data[:, 1] ==
+                                        (self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data[:, 1] ==
                                          self.highlighted[1]) &
-                                        (self.cubes[self.world[self.highlighted][0]].vaos[side].instance_data[:, 2] ==
+                                        (self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data[:, 2] ==
                                          self.highlighted[2])), 0
                         )
-                        self.cubes[self.world[self.highlighted][0]].vaos[side].instance_update()
+                        self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_update()
                     del self.world[self.highlighted]
                     side_values = {"left": (px + 1, py, pz), "bottom": (px, py + 1, pz), "back": (px, py, pz + 1),
                                    "right": (px - 1, py, pz), "top": (px, py - 1, pz), "front": (px, py, pz - 1)}
@@ -485,15 +535,15 @@ class App:
                         x, y, z = side_values[side]
                         if (x, y, z) in self.world:
                             self.world[(x, y, z)][1].append(side)
-                            if len(self.cubes[self.world[(x, y, z)][0]].vaos[side].instance_data) > 0:
-                                self.cubes[self.world[(x, y, z)][0]].vaos[side].instance_data = numpy.append(
-                                    self.cubes[self.world[(x, y, z)][0]].vaos[side].instance_data,
+                            if len(self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data) > 0:
+                                self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data = numpy.append(
+                                    self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data,
                                     numpy.array([[x, y, z]], dtype=numpy.float32), 0
                                 )
                             else:
-                                self.cubes[self.world[(x, y, z)][0]].vaos[side].instance_data = \
+                                self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data = \
                                     numpy.array([[x, y, z]], dtype=numpy.float32)
-                            self.cubes[self.world[(x, y, z)][0]].vaos[side].instance_update()
+                            self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_update()
                     self.highlighted = None
                     self.breaking_block = None
                     self.breaking = False
@@ -535,15 +585,15 @@ class App:
                         x, y, z = side_values[side]
                         if (x, y, z) in self.world:
                             if "ice" not in self.selected_block or "glass" not in self.selected_block:
-                                self.cubes[self.world[(x, y, z)][0]].vaos[side].instance_data = numpy.delete(
-                                    self.cubes[self.world[(x, y, z)][0]].vaos[side].instance_data,
+                                self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data = numpy.delete(
+                                    self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data,
                                     numpy.where(
-                                        (self.cubes[self.world[(x, y, z)][0]].vaos[side].instance_data[:, 0] == x) &
-                                        (self.cubes[self.world[(x, y, z)][0]].vaos[side].instance_data[:, 1] == y) &
-                                        (self.cubes[self.world[(x, y, z)][0]].vaos[side].instance_data[:, 2] == z)
+                                        (self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data[:, 0] == x) &
+                                        (self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data[:, 1] == y) &
+                                        (self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data[:, 2] == z)
                                     ), 0
                                 )
-                                self.cubes[self.world[(x, y, z)][0]].vaos[side].instance_update()
+                                self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_update()
                                 if side == "right":
                                     visible_blocks.remove("left")
                                 elif side == "left":
@@ -571,28 +621,28 @@ class App:
                         side = "front"
                     elif side_value == [0, 0, -1]:
                         side = "back"
-                    self.cubes[self.world[self.highlighted][0]].vaos[side].instance_data = numpy.delete(
-                        self.cubes[self.world[self.highlighted][0]].vaos[side].instance_data,
-                        numpy.where((self.cubes[self.world[self.highlighted][0]].vaos[side].instance_data[:, 0] ==
+                    self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data = numpy.delete(
+                        self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data,
+                        numpy.where((self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data[:, 0] ==
                                      self.highlighted[0]) &
-                                    (self.cubes[self.world[self.highlighted][0]].vaos[side].instance_data[:, 1] ==
+                                    (self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data[:, 1] ==
                                      self.highlighted[1]) &
-                                    (self.cubes[self.world[self.highlighted][0]].vaos[side].instance_data[:, 2] ==
+                                    (self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data[:, 2] ==
                                      self.highlighted[2])), 0
                     )
-                    self.cubes[self.world[self.highlighted][0]].vaos[side].instance_update()
+                    self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_update()
                     self.highlighted = None
                     self.world[new_block] = [self.selected_block, visible_blocks]
                     for side in self.world[new_block][1]:
-                        if len(self.cubes[self.selected_block].vaos[side].instance_data) > 0:
-                            self.cubes[self.selected_block].vaos[side].instance_data = numpy.append(
-                                self.cubes[self.selected_block].vaos[side].instance_data,
+                        if len(self.vaos_3d[self.selected_block].vaos[side].instance_data) > 0:
+                            self.vaos_3d[self.selected_block].vaos[side].instance_data = numpy.append(
+                                self.vaos_3d[self.selected_block].vaos[side].instance_data,
                                 numpy.array([new_block], dtype=numpy.float32), 0
                             )
                         else:
-                            self.cubes[self.selected_block].vaos[side].instance_data = \
+                            self.vaos_3d[self.selected_block].vaos[side].instance_data = \
                                 numpy.array([new_block], dtype=numpy.float32)
-                        self.cubes[self.selected_block].vaos[side].instance_update()
+                        self.vaos_3d[self.selected_block].vaos[side].instance_update()
         else:
             self.place_delay = 0
         if self.place_delay > 0:
@@ -822,6 +872,92 @@ class Cube:
         back_vao = VAO(textures[5], Cube.back_v, Cube.indices)
         self.vaos = {"left": left_vao, "right": right_vao, "bottom": bottom_vao,
                      "top": top_vao, "front": front_vao, "back": back_vao}
+
+
+class TextManager:
+    def __init__(self, app, character_size):
+        self.app = app
+        self.character_size = character_size
+        character = numpy.array([0.0, 0.0, 0.0, 0.0, 0.0,
+                                 0.0, 8.0 * character_size, 0.0, 0.0, 1.0,
+                                 8.0 * character_size, 8.0 * character_size, 0.0, 1.0, 1.0,
+                                 8.0 * character_size, 0.0, 0.0, 1.0, 0.0], dtype=numpy.float32)
+        self.app.vaos_2d[f"character_{self.character_size}_ "] = VAO(
+            character, QUAD_INDICES, QUAD_INDICES, (ASCII_PNG, (0, 16), (8, 8))
+        )
+        for char in CHARACTER_DICT:
+            character = numpy.array([0.0, 0.0, 0.0, 0.0, 0.0,
+                                     0.0, 8.0 * character_size, 0.0, 0.0, 1.0,
+                                     CHARACTER_DICT[char][0][1][0] * character_size,
+                                     8.0 * character_size, 0.0, 1.0, 1.0,
+                                     CHARACTER_DICT[char][0][1][0] * character_size, 0.0, 0.0, 1.0, 0.0],
+                                    dtype=numpy.float32)
+            self.app.vaos_2d[f"character_{self.character_size}_{char}"] = VAO(
+                character, QUAD_INDICES, QUAD_INDICES, (ASCII_PNG, *CHARACTER_DICT[char][0])
+            )
+            character = numpy.array([0.0, 0.0, 0.0, 0.0, 0.0,
+                                     0.0, 8.0 * character_size, 0.0, 0.0, 1.0,
+                                     CHARACTER_DICT[char][1][1][0] * character_size,
+                                     8.0 * character_size, 0.0, 1.0, 1.0,
+                                     CHARACTER_DICT[char][1][1][0] * character_size, 0.0, 0.0, 1.0, 0.0],
+                                    dtype=numpy.float32)
+            self.app.vaos_2d[f"character_{self.character_size}_{char.upper()}"] = VAO(
+                character, QUAD_INDICES, QUAD_INDICES, (ASCII_PNG, *CHARACTER_DICT[char][1])
+            )
+        for char in SPECIAL_CHARACTER_DICT:
+            character = numpy.array([0.0, 0.0, 0.0, 0.0, 0.0,
+                                     0.0, 8.0 * character_size, 0.0, 0.0, 1.0,
+                                     SPECIAL_CHARACTER_DICT[char][1][0] * character_size,
+                                     8.0 * character_size, 0.0, 1.0, 1.0,
+                                     SPECIAL_CHARACTER_DICT[char][1][0] * character_size, 0.0, 0.0, 1.0, 0.0],
+                                    dtype=numpy.float32)
+            self.app.vaos_2d[f"character_{self.character_size}_{char}"] = VAO(
+                character, QUAD_INDICES, QUAD_INDICES, (ASCII_PNG, *SPECIAL_CHARACTER_DICT[char])
+            )
+
+    def add_text(self, text, pos):
+        for character in text:
+            self.app.vaos_2d[f"character_{self.character_size}_{character}"].instances_update(
+                self.app.vaos_2d[f"character_{self.character_size}_{character}"].instances.tolist() + [pos]
+            )
+            if character in CHARACTER_DICT:
+                pos[0] += self.character_size * (CHARACTER_DICT[character][0][1][0] + 1)
+            elif character.lower() in CHARACTER_DICT:
+                pos[0] += self.character_size * (CHARACTER_DICT[character.lower()][1][1][0] + 1)
+            elif character in SPECIAL_CHARACTER_DICT:
+                pos[0] += self.character_size * (SPECIAL_CHARACTER_DICT[character][1][0] + 1)
+            else:
+                pos[0] += self.character_size * 5
+
+    def remove_text(self, text, pos):
+        for character in text:
+            self.app.vaos_2d[f"character_{self.character_size}_{character}"].instances = numpy.delete(
+                self.app.vaos_2d[f"character_{self.character_size}_{character}"].instances,
+                numpy.where(
+                    (self.app.vaos_2d[f"character_{self.character_size}_{character}"].instances[:, 0] == pos[0]) &
+                    (self.app.vaos_2d[f"character_{self.character_size}_{character}"].instances[:, 1] == pos[1]) &
+                    (self.app.vaos_2d[f"character_{self.character_size}_{character}"].instances[:, 2] == pos[2])
+                ), 0
+            )
+            self.app.vaos_2d[f"character_{self.character_size}_{character}"].instances_update()
+            if character in CHARACTER_DICT:
+                pos[0] += self.character_size * (CHARACTER_DICT[character][0][1][0] + 1)
+            elif character.lower() in CHARACTER_DICT:
+                pos[0] += self.character_size * (CHARACTER_DICT[character.lower()][1][1][0] + 1)
+            elif character in SPECIAL_CHARACTER_DICT:
+                pos[0] += self.character_size * (SPECIAL_CHARACTER_DICT[character][1][0] + 1)
+            else:
+                pos[0] += self.character_size * 5
+
+    def clear(self):
+        for char in CHARACTER_DICT:
+            if len(self.app.vaos_2d[f"character_{self.character_size}_{char}"].instances) > 0:
+                self.app.vaos_2d[f"character_{self.character_size}_{char}"].instances_update([])
+            if len(self.app.vaos_2d[f"character_{self.character_size}_{char.upper()}"].instances) > 0:
+                self.app.vaos_2d[f"character_{self.character_size}_{char.upper()}"].instances_update([])
+        for char in SPECIAL_CHARACTER_DICT:
+            if len(self.app.vaos_2d[f"character_{self.character_size}_{char}"].instances) > 0:
+                self.app.vaos_2d[f"character_{self.character_size}_{char}"].instances_update([])
 
 
 if __name__ == '__main__':
