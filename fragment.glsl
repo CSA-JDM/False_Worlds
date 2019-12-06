@@ -7,4 +7,6 @@ uniform sampler2D s_texture;
 
 void main() {
     out_texture = texture(s_texture, v_texture);
+    if(out_texture.a < .1)
+        discard;
 }
