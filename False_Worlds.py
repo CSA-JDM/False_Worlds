@@ -207,6 +207,7 @@ class App:
         block_break = list()
         # endregion
 
+        # region VAO Initialization
         self.char_2 = TextManager(self, 2)
         self.char_3 = TextManager(self, 3)
         self.char_4 = TextManager(self, 4)
@@ -259,7 +260,9 @@ class App:
         self.vaos_2d["mouse_inventory"] = VAO(
             "textures/tp.png", HOTBAR_ICON, INDICES
         )
+        # endregion
 
+        # region OpenGL Initialization
         glUseProgram(shader)
         glClearColor(135.0 / 255.0, 206.0 / 255.0, 235.0 / 255.0, 1.0)
         glEnable(GL_CULL_FACE)
@@ -272,6 +275,7 @@ class App:
         translation_3d = pyrr.matrix44.create_from_translation([0.0, -1.65, 0.0])
         translation_2d = pyrr.matrix44.create_from_translation([0.0, 0.0, 0.0])
         view_2d = pyrr.matrix44.create_from_translation([0.0, 0.0, 0.0])
+        # endregion
         self.main_menu()
 
         while not glfw.window_should_close(self.window):
@@ -398,6 +402,7 @@ class App:
         self.in_menu = False
         self.in_game = False
 
+        # region Instructions
         self.char_4.add_text("Controls:", [200.0, 280.0, -0.4])
         self.char_2.add_text("* W - Walk forwards", [220.0, 340.0 - 10.0, -0.4])
         self.char_2.add_text("* A - Walk backwards", [220.0, 360.0 - 10.0, -0.4])
@@ -414,6 +419,8 @@ class App:
         self.char_2.add_text("* Esc - Pause game and open menu", [220.0, 540.0 - 10.0, -0.4])
         self.char_2.add_text("* P - Respawn at starting position", [220.0, 560.0 - 10.0, -0.4])
         self.char_4.add_text("Loading...", [548.0, 600.0, -0.4])
+        # endregion
+
         for vao in self.vaos_2d:
             if ("inventory" in vao and self.in_inventory) or (vao == "paused" and self.paused) or \
                     ("button" in vao and self.in_menu) or ("character_3" in vao and self.in_menu) or \
@@ -430,9 +437,9 @@ class App:
                     )
                     glBindTexture(GL_TEXTURE_2D, 0)
                 glBindVertexArray(0)
-
         glfw.swap_buffers(self.window)
 
+        # region World Initialization
         self.world.clear()
         self.highlighted = None
         self.jumping = False
@@ -504,6 +511,8 @@ class App:
         for cube in instance_data:
             for side in instance_data[cube]:
                 self.vaos_3d[cube].vaos[side].instance_update(instance_data[cube][side])
+        # endregion
+
         self.char_4.remove_text("Loading...", [548.0, 600.0, -0.4])
         self.char_4.add_text("Press any key to continue", [380.0, 600.0, -0.4])
 
