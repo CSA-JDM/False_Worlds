@@ -23,11 +23,13 @@ import numpy
 import pyrr
 import noise
 import os
+import random
 from PIL import Image
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
 
 
+# region Constants
 HIGHLIGHTED_CUBE = numpy.array([-0.02, -0.02, 1.02, 0.0, 0.0,
                                 1.02, -0.02, 1.02, 1.0, 0.0,
                                 1.02, 1.02, 1.02, 1.0, 1.0,
@@ -144,6 +146,7 @@ SPECIAL_CHARACTER_DICT = {
     "9": ((72, 24), (5, 7))
 }
 ASCII_PNG = Image.open("textures/ascii.png")
+# endregion
 
 
 class App:
@@ -168,7 +171,7 @@ class App:
 
         # region Variables
         self.keys = [False] * 1024
-        self.y_values = [[0 for _ in range(128)] for _ in range(128)]
+        self.chunks = list()
         self.world = dict()
         self.mouse_visibility = True
         self.in_menu = True
@@ -176,9 +179,6 @@ class App:
         self.in_inventory = False
         self.paused = False
         self.new_game = False
-        self.highlighted = None
-        self.breaking_block = None
-        self.selected_block = "dirt"
         self.jumping = False
         self.crouching = False
         self.holding_walk = False
@@ -187,6 +187,9 @@ class App:
         self.flying = False
         self.placing = False
         self.breaking = False
+        self.selected_block = ""
+        self.highlighted = None
+        self.breaking_block = None
         self.sprint_delay = 0
         self.place_delay = 0
         self.break_delay = 0
@@ -401,6 +404,10 @@ class App:
         self.mouse_visibility = False
         self.in_menu = False
         self.in_game = False
+        self.jumping = False
+        self.crouching = False
+        self.highlighted = None
+        self.air_velocity = 0
 
         # region Instructions
         self.char_4.add_text("Controls:", [200.0, 280.0, -0.4])
@@ -440,30 +447,31 @@ class App:
         glfw.swap_buffers(self.window)
 
         # region World Initialization
+        self.chunks.clear()
         self.world.clear()
-        self.highlighted = None
-        self.jumping = False
-        self.crouching = False
-        self.air_velocity = 0
+        size = [1024, 1024]
         scale = 100.0
         octaves = 6
         persistence = 0.5
         lacunarity = 2.0
-        for i in range(64):
-            for j in range(64):
-                self.y_values[i][j] = int(noise.pnoise2(
+        base = random.randint(0, 1024)
+        y_values = numpy.zeros(size, dtype=numpy.int32)
+        for i in range(size[0]):
+            for j in range(size[1]):
+                y_values[i][j] = int(noise.pnoise2(
                     i / scale, j / scale, octaves=octaves, persistence=persistence, lacunarity=lacunarity,
-                    repeatx=64, repeaty=64, base=0
+                    repeatx=size[0], repeaty=size[1], base=base
                 ) * 100 + 60)
-        for x in range(-32, 32):
-            for z in range(-32, 32):
-                self.world[(x, 0, z)] = ["bedrock", ["right", "left", "top", "bottom", "front", "back"]]
-                for y in range(1, self.y_values[x + 32][z + 32] - 5):
-                    self.world[(x, y, z)] = ["stone", ["right", "left", "top", "bottom", "front", "back"]]
-                for y in range(self.y_values[x + 32][z + 32] - 5, self.y_values[x + 32][z + 32]):
-                    self.world[(x, y, z)] = ["dirt", ["right", "left", "top", "bottom", "front", "back"]]
-                self.world[(x, self.y_values[x + 32][z + 32], z)] = \
-                    ["grass", ["right", "left", "top", "bottom", "front", "back"]]
+        for cx, cz in [[x_, z_] for x_ in range(-1, 2) for z_ in range(-1, 2)]:
+            for x in range(cx * 16, cx * 16 + 16):
+                for z in range(cz * 16, cz * 16 + 16):
+                    self.world[(x, 0, z)] = ["bedrock", ["right", "left", "top", "bottom", "front", "back"]]
+                    for y in range(1, y_values[x + 512][z + 512] - 5):
+                        self.world[(x, y, z)] = ["stone", ["right", "left", "top", "bottom", "front", "back"]]
+                    for y in range(y_values[x + 512][z + 512] - 5, y_values[x + 512][z + 512]):
+                        self.world[(x, y, z)] = ["dirt", ["right", "left", "top", "bottom", "front", "back"]]
+                    self.world[(x, y_values[x + 512][z + 512], z)] = \
+                        ["grass", ["right", "left", "top", "bottom", "front", "back"]]
         for pos in self.world:
             o_pos_dict = {"right": (pos[0] - 1, *pos[1:]),
                           "left": (pos[0] + 1, *pos[1:]),
@@ -673,7 +681,7 @@ class App:
                 glfw.set_input_mode(self.window, glfw.CURSOR, glfw.CURSOR_HIDDEN)
             glfw.set_cursor_pos(self.window, self.width / 2, self.height / 2)
         elif key == glfw.KEY_P and action == glfw.PRESS:
-            self.camera.camera_pos = pyrr.Vector3([0.0, self.y_values[32][32] + 1, 0.0])
+            self.camera.camera_pos = pyrr.Vector3([0.0, 101, 0.0])
         if 0 <= key < 1024:
             if action == glfw.PRESS:
                 self.keys[key] = True
@@ -687,7 +695,7 @@ class App:
                 )
                 self.vaos_2d["active_bar"].instance_update()
         if self.new_game:
-            self.camera.camera_pos = pyrr.Vector3([0.0, self.y_values[32][32] + 1, 0.0])
+            self.camera.camera_pos = pyrr.Vector3([0.0, 101, 0.0])
             self.char_2.clear()
             self.char_4.clear()
             self.char_10.clear()
@@ -846,7 +854,7 @@ class App:
         else:
             self.fly_delay = 0
         if self.camera.camera_pos[1] < -64 and self.in_game:
-            self.camera.camera_pos = pyrr.Vector3([0.0, self.y_values[32][32] + 1, 0.0])
+            self.camera.camera_pos = pyrr.Vector3([0.0, 101, 0.0])
 
     def mouse_button_check(self, time_s):
         mouse_buttons = glfw.get_mouse_button(self.window, glfw.MOUSE_BUTTON_LEFT), \
