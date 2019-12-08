@@ -179,22 +179,9 @@ class App:
         self.in_inventory = False
         self.paused = False
         self.new_game = False
-        self.jumping = False
-        self.crouching = False
-        self.holding_walk = False
-        self.holding_jump = False
-        self.sprinting = False
-        self.flying = False
-        self.placing = False
-        self.breaking = False
         self.selected_block = ""
         self.highlighted = None
         self.breaking_block = None
-        self.sprint_delay = 0
-        self.place_delay = 0
-        self.break_delay = 0
-        self.fly_delay = 0
-        self.air_velocity = 0
         self.fps = 0
         self.width = 1280
         self.height = 720
@@ -204,7 +191,7 @@ class App:
         self.projection_loc = glGetUniformLocation(shader, "projection")
         self.model_loc = glGetUniformLocation(shader, "model")
         self.view_loc = glGetUniformLocation(shader, "view")
-        self.camera = Camera(self)
+        self.player = Player(self)
         self.vaos_3d = dict()
         self.vaos_2d = dict()
         block_break = list()
@@ -290,7 +277,7 @@ class App:
             time_s = (time_n - self.time_p) / 10000000
             self.time_p = time_n
             self.mouse_button_check(time_s)
-            view = self.camera.get_view_matrix()
+            view = self.player.get_view_matrix()
 
             if self.in_game:
                 if self.new_game:
@@ -298,7 +285,7 @@ class App:
                     # todo poll events?
                 if not self.paused:  # implement ray casting
                     self.do_movement(time_s)
-                    view = self.camera.get_view_matrix()
+                    view = self.player.get_view_matrix()
                     mx, my = glfw.get_cursor_pos(self.window)
                     ray_nds = pyrr.Vector3([(2.0 * mx) / 1280 - 1.0, 1.0 - (2.0 * my) / 720, 1.0])
                     ray_clip = pyrr.Vector4([*ray_nds.xy, -1.0, 1.0])
@@ -307,7 +294,7 @@ class App:
                     ray_wor = (numpy.linalg.inv(view) * ray_eye).xyz
                     self.ray_wor = pyrr.vector.normalise(ray_wor)
                     for i in numpy.arange(1, 4, 0.01):
-                        ray_cam = self.camera.camera_pos + self.ray_wor * i
+                        ray_cam = self.player.player_pos + self.ray_wor * i
                         ray_cam.y += 1.62
                         self.ray_cam = ray_cam
                         self.ray_i = i
@@ -342,10 +329,10 @@ class App:
                 if not numpy.array_equal(self.highlighted, highlighted_vao.instance_data):
                     highlighted_vao.instance_update(self.highlighted)
                 glBindVertexArray(highlighted_vao.vao)
-                if self.breaking:
-                    if self.break_delay >= 0:
+                if self.player.breaking:
+                    if self.player.break_delay >= 0:
                         glBindTexture(GL_TEXTURE_2D, block_break[
-                            int(-(self.break_delay - (0.5 - (0.5 / 10))) / (0.5 / 10))
+                            int(-(self.player.break_delay - (0.5 - (0.5 / 10))) / (0.5 / 10))
                         ])
                     else:
                         glBindTexture(GL_TEXTURE_2D, block_break[int((0.5 - (0.5 / 10)) / (0.5 / 10))])
@@ -404,10 +391,10 @@ class App:
         self.mouse_visibility = False
         self.in_menu = False
         self.in_game = False
-        self.jumping = False
-        self.crouching = False
+        self.player.jumping = False
+        self.player.crouching = False
         self.highlighted = None
-        self.air_velocity = 0
+        self.player.air_velocity = 0
 
         # region Instructions
         self.char_4.add_text("Controls:", [200.0, 280.0, -0.4])
@@ -528,7 +515,7 @@ class App:
         if not self.mouse_visibility:
             x_offset = dx - self.width / 2
             y_offset = self.height / 2 - dy
-            self.camera.process_mouse_movement(x_offset, y_offset)
+            self.player.process_mouse_movement(x_offset, y_offset)
             glfw.set_cursor_pos(self.window, self.width / 2, self.height / 2)
         elif self.mouse_visibility:
             if self.in_menu:
@@ -681,7 +668,7 @@ class App:
                 glfw.set_input_mode(self.window, glfw.CURSOR, glfw.CURSOR_HIDDEN)
             glfw.set_cursor_pos(self.window, self.width / 2, self.height / 2)
         elif key == glfw.KEY_P and action == glfw.PRESS:
-            self.camera.camera_pos = pyrr.Vector3([0.0, 101, 0.0])
+            self.player.player_pos = pyrr.Vector3([0.0, 101, 0.0])
         if 0 <= key < 1024:
             if action == glfw.PRESS:
                 self.keys[key] = True
@@ -695,7 +682,7 @@ class App:
                 )
                 self.vaos_2d["active_bar"].instance_update()
         if self.new_game:
-            self.camera.camera_pos = pyrr.Vector3([0.0, 101, 0.0])
+            self.player.player_pos = pyrr.Vector3([0.0, 101, 0.0])
             self.char_2.clear()
             self.char_4.clear()
             self.char_10.clear()
@@ -708,167 +695,170 @@ class App:
     def do_movement(self, time_s):
         net_movement = 4.317 * time_s
         if self.keys[glfw.KEY_W]:
-            if self.sprint_delay > 0 and not self.holding_walk:
-                self.sprinting = True
-            elif self.sprint_delay == 0 and not self.holding_walk:
-                self.sprint_delay = 0.25
-            self.holding_walk = True
-            if self.flying:
-                if self.sprinting:
-                    self.camera.process_keyboard("FRONT", net_movement * 5.0)
+            if self.player.sprint_delay > 0 and not self.player.holding_walk:
+                self.player.sprinting = True
+            elif self.player.sprint_delay == 0 and not self.player.holding_walk:
+                self.player.sprint_delay = 0.25
+            self.player.holding_walk = True
+            if self.player.flying:
+                if self.player.sprinting:
+                    self.player.process_keyboard("FRONT", net_movement * 5.0)
                 else:
-                    self.camera.process_keyboard("FRONT", net_movement * 2.5)
-            elif self.crouching:
-                self.camera.process_keyboard("FRONT", net_movement * 0.3)
+                    self.player.process_keyboard("FRONT", net_movement * 2.5)
+            elif self.player.crouching:
+                self.player.process_keyboard("FRONT", net_movement * 0.3)
             else:
-                if self.sprinting:
-                    self.camera.process_keyboard("FRONT", net_movement * 1.3)
+                if self.player.sprinting:
+                    self.player.process_keyboard("FRONT", net_movement * 1.3)
                 else:
-                    self.camera.process_keyboard("FRONT", net_movement)
+                    self.player.process_keyboard("FRONT", net_movement)
         else:
-            self.holding_walk = False
-            self.sprinting = False
+            self.player.holding_walk = False
+            self.player.sprinting = False
         if self.keys[glfw.KEY_A]:
-            if self.flying:
-                self.camera.process_keyboard("SIDE", -net_movement * 2.5)
-            elif self.crouching:
-                self.camera.process_keyboard("SIDE", -net_movement * 0.3)
+            if self.player.flying:
+                self.player.process_keyboard("SIDE", -net_movement * 2.5)
+            elif self.player.crouching:
+                self.player.process_keyboard("SIDE", -net_movement * 0.3)
             else:
-                self.camera.process_keyboard("SIDE", -net_movement)
+                self.player.process_keyboard("SIDE", -net_movement)
         if self.keys[glfw.KEY_S]:
-            if self.flying:
-                self.camera.process_keyboard("FRONT", -net_movement * 2.5)
-            elif self.crouching:
-                self.camera.process_keyboard("FRONT", -net_movement * 0.3)
+            if self.player.flying:
+                self.player.process_keyboard("FRONT", -net_movement * 2.5)
+            elif self.player.crouching:
+                self.player.process_keyboard("FRONT", -net_movement * 0.3)
             else:
-                self.camera.process_keyboard("FRONT", -net_movement)
+                self.player.process_keyboard("FRONT", -net_movement)
         if self.keys[glfw.KEY_D]:
-            if self.flying:
-                self.camera.process_keyboard("SIDE", net_movement * 2.5)
-            elif self.crouching:
-                self.camera.process_keyboard("SIDE", net_movement * 0.3)
+            if self.player.flying:
+                self.player.process_keyboard("SIDE", net_movement * 2.5)
+            elif self.player.crouching:
+                self.player.process_keyboard("SIDE", net_movement * 0.3)
             else:
-                self.camera.process_keyboard("SIDE", net_movement)
-        x, y, z = self.camera.camera_pos
+                self.player.process_keyboard("SIDE", net_movement)
+        x, y, z = self.player.player_pos
         x, y, z = self.check_value(x, 0.3), self.check_value(y, 0), self.check_value(z, 0.3)
         if self.keys[glfw.KEY_SPACE]:
-            if self.fly_delay > 0 and not self.holding_jump:
-                self.flying = not self.flying
-                self.air_velocity = 0
-                self.jumping = False
-            elif self.fly_delay == 0 and not self.holding_jump:
-                self.fly_delay = 0.25
-            self.holding_jump = True
-            if not self.jumping and not self.flying and \
+            if self.player.fly_delay > 0 and not self.player.holding_jump:
+                self.player.flying = not self.player.flying
+                self.player.air_velocity = 0
+                self.player.jumping = False
+            elif self.player.fly_delay == 0 and not self.player.holding_jump:
+                self.player.fly_delay = 0.25
+            self.player.holding_jump = True
+            if not self.player.jumping and not self.player.flying and \
                     ((int(x + 0.3), int(numpy.ceil(y - 1)), int(z + 0.3)) in self.world or
                      (int(x + 0.3), int(numpy.ceil(y - 1)), int(z - 0.3)) in self.world or
                      (int(x - 0.3), int(numpy.ceil(y - 1)), int(z + 0.3)) in self.world or
                      (int(x - 0.3), int(numpy.ceil(y - 1)), int(z - 0.3)) in self.world):
-                self.air_velocity = 8.95142 * time_s
-                self.camera.process_keyboard("UP", self.air_velocity)
-                self.jumping = True
-            if self.flying:
-                self.camera.process_keyboard("UP", net_movement * 2)
+                self.player.air_velocity = 8.95142
+                self.player.process_keyboard("UP", self.player.air_velocity * time_s)
+                self.player.jumping = True
+            if self.player.flying:
+                self.player.process_keyboard("UP", net_movement * 2)
         else:
-            self.holding_jump = False
+            self.player.holding_jump = False
         if self.keys[glfw.KEY_LEFT_SHIFT]:
-            if not self.crouching:
-                self.camera.camera_pos[1] -= 0.125
-                self.crouching = True
-            if self.flying:
-                self.camera.process_keyboard("UP", -net_movement * 2)
-        elif self.crouching:
-            self.camera.camera_pos[1] += 0.125
-            self.crouching = False
-        cx, cy, cz = self.camera.camera_pos
-        if self.crouching:
-            cy += 0.125
+            if not self.player.crouching:
+                self.player.player_pos[1] -= 0.3
+                self.player.crouching = True
+            if self.player.flying:
+                self.player.process_keyboard("UP", -net_movement * 2)
+        elif self.player.crouching:
+            self.player.player_pos[1] += 0.3
+            self.player.crouching = False
+        cx, cy, cz = self.player.player_pos
+        if self.player.crouching:
+            cy += 0.3
         cx, cy, cz = self.check_value(cx, 0.3), self.check_value(cy, 0), self.check_value(cz, 0.3)
         if (int(cx + 0.3), int(numpy.ceil(cy - 1)), int(cz + 0.3)) not in self.world and \
                 (int(cx + 0.3), int(numpy.ceil(cy - 1)), int(cz - 0.3)) not in self.world and \
                 (int(cx - 0.3), int(numpy.ceil(cy - 1)), int(cz + 0.3)) not in self.world and \
-                (int(cx - 0.3), int(numpy.ceil(cy - 1)), int(cz - 0.3)) not in self.world and not self.flying:
-            self.air_velocity -= 32 * time_s ** 2
-            if (int(cx + 0.3), int(numpy.ceil(cy + self.air_velocity - 1)), int(cz + 0.3)) \
+                (int(cx - 0.3), int(numpy.ceil(cy - 1)), int(cz - 0.3)) not in self.world and not self.player.flying:
+            if self.player.air_velocity > -78.4:
+                self.player.air_velocity -= (32 - .4) * time_s  # .4 is drag (a force, aka Newtons, so might not work)
+            if self.player.air_velocity <= -78.4:
+                self.player.air_velocity = -78.4
+            if (int(cx + 0.3), int(numpy.ceil(cy + self.player.air_velocity * time_s - 1)), int(cz + 0.3)) \
                     not in self.world and \
-                    (int(cx + 0.3), int(numpy.ceil(cy + self.air_velocity - 1)), int(cz - 0.3)) \
+                    (int(cx + 0.3), int(numpy.ceil(cy + self.player.air_velocity * time_s - 1)), int(cz - 0.3)) \
                     not in self.world and \
-                    (int(cx - 0.3), int(numpy.ceil(cy + self.air_velocity - 1)), int(cz + 0.3)) \
+                    (int(cx - 0.3), int(numpy.ceil(cy + self.player.air_velocity * time_s - 1)), int(cz + 0.3)) \
                     not in self.world and \
-                    (int(cx - 0.3), int(numpy.ceil(cy + self.air_velocity - 1)), int(cz - 0.3)) \
+                    (int(cx - 0.3), int(numpy.ceil(cy + self.player.air_velocity * time_s - 1)), int(cz - 0.3)) \
                     not in self.world:
-                if (int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.air_velocity - 1)), int(cz + 0.3)) \
+                if (int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_velocity * time_s - 1)), int(cz + 0.3)) \
                         not in self.world and \
-                        (int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.air_velocity - 1)), int(cz - 0.3)) \
+                        (int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_velocity * time_s - 1)), int(cz - 0.3)) \
                         not in self.world and \
-                        (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.air_velocity - 1)), int(cz + 0.3)) \
+                        (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_velocity * time_s - 1)), int(cz + 0.3)) \
                         not in self.world and \
-                        (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.air_velocity - 1)), int(cz - 0.3)) \
+                        (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_velocity * time_s - 1)), int(cz - 0.3)) \
                         not in self.world:
-                    self.camera.process_keyboard("UP", self.air_velocity)
+                    self.player.process_keyboard("UP", self.player.air_velocity * time_s)
                 else:
-                    if not self.crouching:
-                        self.camera.camera_pos[1] = int(self.camera.camera_pos[1]) + 0.15
+                    if not self.player.crouching:
+                        self.player.player_pos[1] = int(self.player.player_pos[1]) + 0.15
                     else:
-                        self.camera.camera_pos[1] = int(self.camera.camera_pos[1]) + 0.025
-                    self.air_velocity = 0
-                    self.jumping = False
-                    self.flying = False
+                        self.player.player_pos[1] = int(self.player.player_pos[1]) - 0.15
+                    self.player.air_velocity = 0
+                    self.player.jumping = False
+                    self.player.flying = False
             else:
-                if not self.crouching:
-                    self.camera.camera_pos[1] = round(self.camera.camera_pos[1])
+                if not self.player.crouching:
+                    self.player.player_pos[1] = round(self.player.player_pos[1])
                 else:
-                    self.camera.camera_pos[1] = round(self.camera.camera_pos[1]) - 0.125
-                self.air_velocity = 0
-                self.jumping = False
-                self.flying = False
+                    self.player.player_pos[1] = round(self.player.player_pos[1]) - 0.3
+                self.player.air_velocity = 0
+                self.player.jumping = False
+                self.player.flying = False
         elif not ((int(cx + 0.3), int(numpy.ceil(cy - 1)), int(cz + 0.3)) not in self.world and
                   (int(cx + 0.3), int(numpy.ceil(cy - 1)), int(cz - 0.3)) not in self.world and
                   (int(cx - 0.3), int(numpy.ceil(cy - 1)), int(cz + 0.3)) not in self.world and
                   (int(cx - 0.3), int(numpy.ceil(cy - 1)), int(cz - 0.3)) not in self.world):
-            if not self.crouching:
-                self.camera.camera_pos[1] = round(self.camera.camera_pos[1])
+            if not self.player.crouching:
+                self.player.player_pos[1] = round(self.player.player_pos[1])
             else:
-                self.camera.camera_pos[1] = round(self.camera.camera_pos[1]) - 0.125
-            self.air_velocity = 0
-            self.jumping = False
-            self.flying = False
-        elif not ((int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.air_velocity - 1)), int(cz + 0.3))
+                self.player.player_pos[1] = round(self.player.player_pos[1]) - 0.3
+            self.player.air_velocity = 0
+            self.player.jumping = False
+            self.player.flying = False
+        elif not ((int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_velocity - 1)), int(cz + 0.3))
                   not in self.world and
-                  (int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.air_velocity - 1)), int(cz - 0.3))
+                  (int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_velocity - 1)), int(cz - 0.3))
                   not in self.world and
-                  (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.air_velocity - 1)), int(cz + 0.3))
+                  (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_velocity - 1)), int(cz + 0.3))
                   not in self.world and
-                  (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.air_velocity - 1)), int(cz - 0.3))
+                  (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_velocity - 1)), int(cz - 0.3))
                   not in self.world):
-            if not self.crouching:
-                self.camera.camera_pos[1] = int(self.camera.camera_pos[1]) + 0.149
+            if not self.player.crouching:
+                self.player.player_pos[1] = int(self.player.player_pos[1]) + 0.149
             else:
-                self.camera.camera_pos[1] = int(self.camera.camera_pos[1]) + 0.024
-        if self.sprint_delay > 0:
-            self.sprint_delay -= time_s
+                self.player.player_pos[1] = int(self.player.player_pos[1]) - 0.151
+        if self.player.sprint_delay > 0:
+            self.player.sprint_delay -= time_s
         else:
-            self.sprint_delay = 0
-        if self.fly_delay > 0:
-            self.fly_delay -= time_s
+            self.player.sprint_delay = 0
+        if self.player.fly_delay > 0:
+            self.player.fly_delay -= time_s
         else:
-            self.fly_delay = 0
-        if self.camera.camera_pos[1] < -64 and self.in_game:
-            self.camera.camera_pos = pyrr.Vector3([0.0, 101, 0.0])
+            self.player.fly_delay = 0
+        if self.player.player_pos[1] < -64 and self.in_game:
+            self.player.player_pos = pyrr.Vector3([0.0, 101, 0.0])
 
     def mouse_button_check(self, time_s):
         mouse_buttons = glfw.get_mouse_button(self.window, glfw.MOUSE_BUTTON_LEFT), \
                         glfw.get_mouse_button(self.window, glfw.MOUSE_BUTTON_RIGHT)
-        if self.breaking and (self.highlighted is None or self.breaking_block.tolist() != self.highlighted.tolist()):
-            self.break_delay = 0.5
+        if self.player.breaking and (self.highlighted is None or self.breaking_block.tolist() != self.highlighted.tolist()):
+            self.player.break_delay = 0.5
             self.breaking_block = self.highlighted
         if mouse_buttons[0]:
             if not self.mouse_visibility and self.highlighted is not None:
-                if self.break_delay <= 0 and not self.breaking:
-                    self.break_delay = 0.5
-                    self.breaking = True
+                if self.player.break_delay <= 0 and not self.player.breaking:
+                    self.player.break_delay = 0.5
+                    self.player.breaking = True
                     self.breaking_block = self.highlighted
-                if self.break_delay <= 0 and self.breaking and self.world[tuple(self.highlighted)][0] != "bedrock":
+                if self.player.break_delay <= 0 and self.player.breaking and self.world[tuple(self.highlighted)][0] != "bedrock":
                     px, py, pz = self.highlighted
                     px, py, pz = int(px), int(py), int(pz)
                     self.highlighted = tuple(self.highlighted)
@@ -901,18 +891,18 @@ class App:
                             self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_update()
                     self.highlighted = None
                     self.breaking_block = None
-                    self.breaking = False
+                    self.player.breaking = False
             else:
-                self.break_delay = 0
-                self.breaking = False
+                self.player.break_delay = 0
+                self.player.breaking = False
         else:
-            self.break_delay = 0
-            self.breaking = False
+            self.player.break_delay = 0
+            self.player.breaking = False
         if mouse_buttons[1]:
-            if self.highlighted is not None and self.place_delay <= 0:
+            if self.highlighted is not None and self.player.place_delay <= 0:
                 new_block = self.block_face()
-                x, y, z = self.camera.camera_pos
-                if self.crouching:
+                x, y, z = self.player.player_pos
+                if self.player.crouching:
                     y += 0.125
                 x, y, z = self.check_value(x, 0.3), self.check_value(y, 0), self.check_value(z, 0.3)
                 player_hitbox = ((int(x), int(y), int(z)),
@@ -931,7 +921,7 @@ class App:
                                  (int(x - 0.3), int(y + 1.85), int(z + 0.3)),
                                  (int(x - 0.3), int(y + 1.85), int(z - 0.3)))
                 if new_block not in self.world and new_block not in player_hitbox and self.selected_block is not None:
-                    self.place_delay = 0.25
+                    self.player.place_delay = 0.25
                     visible_blocks = ["right", "left", "top", "bottom", "front", "back"]
                     bx, by, bz = new_block
                     side_values = {"left": (bx + 1, by, bz), "bottom": (bx, by + 1, bz), "back": (bx, by, bz + 1),
@@ -1001,14 +991,14 @@ class App:
                                 numpy.array([new_block], dtype=numpy.float32)
                         self.vaos_3d[self.selected_block].vaos[side].instance_update()
         else:
-            self.place_delay = 0
-        if self.place_delay > 0:
-            self.place_delay -= time_s
-        if self.break_delay > 0:
-            self.break_delay -= time_s
+            self.player.place_delay = 0
+        if self.player.place_delay > 0:
+            self.player.place_delay -= time_s
+        if self.player.break_delay > 0:
+            self.player.break_delay -= time_s
 
     def block_face(self):
-        x, y, z = self.camera.camera_pos + self.ray_wor * (self.ray_i - 0.01)
+        x, y, z = self.player.player_pos + self.ray_wor * (self.ray_i - 0.01)
         y += 1.62
         x, y, z = int(self.check_value(x, 0)), int(self.check_value(y, 0)), int(self.check_value(z, 0))
         hx, hy, hz = self.highlighted
@@ -1019,22 +1009,22 @@ class App:
             return hx, hy, hz
 
     def check_pos(self, axis, distance):
-        x, y, z = self.camera.camera_pos
-        if self.crouching:
-            y += 0.125
+        x, y, z = self.player.player_pos
+        if self.player.crouching:
+            y += 0.3
         x, y, z = self.check_value(x, 0.3), self.check_value(y, 0), self.check_value(z, 0.3)
         crouch_counter = 0
         for i1, i2 in {(-.3, -.3), (-.3, .3), (.3, -.3), (.3, .3)}:
             ix, iy, iz = int(x + i1), y, int(z + i2)
             if (ix, int(iy), iz) in self.world or (ix, int(iy + 1), iz) in self.world or \
                     (ix, int(iy + 1.85), iz) in self.world:
-                self.camera.camera_pos[axis] -= distance
+                self.player.player_pos[axis] -= distance
                 return
-            elif self.crouching and not self.flying and not self.jumping \
+            elif self.player.crouching and not self.player.flying and not self.player.jumping \
                     and (ix, int(iy - 1), iz) not in self.world:
                 crouch_counter += 1
         if crouch_counter >= 4:
-            self.camera.camera_pos[axis] -= distance
+            self.player.player_pos[axis] -= distance
 
     def window_resize(self, window, width, height):
         glViewport(0, 0, width, height)
@@ -1052,31 +1042,31 @@ class App:
 class Camera:
     def __init__(self, app):
         self.app = app
-        self.camera_pos = pyrr.Vector3([0.0, 0.0, 0.0])
-        self.camera_front = pyrr.Vector3([0.0, 0.0, -1.0])
-        self.camera_up = pyrr.Vector3([0.0, 1.0, 0.0])
-        self.camera_right = pyrr.Vector3([1.0, 0.0, 0.0])
+        self.player_pos = pyrr.Vector3([0.0, 0.0, 0.0])
+        self.player_front = pyrr.Vector3([0.0, 0.0, -1.0])
+        self.player_up = pyrr.Vector3([0.0, 1.0, 0.0])
+        self.player_right = pyrr.Vector3([1.0, 0.0, 0.0])
 
         self.mouse_sensitivity = 0.125
         self.yaw = -90.0
         self.pitch = 0.0
 
     def get_view_matrix(self):
-        return self.look_at(self.camera_pos, self.camera_pos + self.camera_front, self.camera_up)
+        return self.look_at(self.player_pos, self.player_pos + self.player_front, self.player_up)
 
     def process_keyboard(self, direction, velocity):
         if direction == "FRONT":
-            self.camera_pos[0] += numpy.cos(numpy.radians(self.yaw)) * velocity
+            self.player_pos[0] += numpy.cos(numpy.radians(self.yaw)) * velocity
             self.app.check_pos(0, numpy.cos(numpy.radians(self.yaw)) * velocity)
-            self.camera_pos[2] += numpy.sin(numpy.radians(self.yaw)) * velocity
+            self.player_pos[2] += numpy.sin(numpy.radians(self.yaw)) * velocity
             self.app.check_pos(2, numpy.sin(numpy.radians(self.yaw)) * velocity)
         elif direction == "SIDE":
-            self.camera_pos[0] += numpy.cos(numpy.radians(self.yaw) + numpy.pi / 2) * velocity
+            self.player_pos[0] += numpy.cos(numpy.radians(self.yaw) + numpy.pi / 2) * velocity
             self.app.check_pos(0, numpy.cos(numpy.radians(self.yaw) + numpy.pi / 2) * velocity)
-            self.camera_pos[2] += numpy.sin(numpy.radians(self.yaw) + numpy.pi / 2) * velocity
+            self.player_pos[2] += numpy.sin(numpy.radians(self.yaw) + numpy.pi / 2) * velocity
             self.app.check_pos(2, numpy.sin(numpy.radians(self.yaw) + numpy.pi / 2) * velocity)
         elif direction == "UP":
-            self.camera_pos[1] += velocity
+            self.player_pos[1] += velocity
 
     def process_mouse_movement(self, x_offset, y_offset, constrain_pitch=True):
         x_offset *= self.mouse_sensitivity
@@ -1099,9 +1089,9 @@ class Camera:
         front.y = numpy.sin(numpy.radians(self.pitch))
         front.z = numpy.sin(numpy.radians(self.yaw)) * numpy.cos(numpy.radians(self.pitch))
 
-        self.camera_front = pyrr.vector.normalise(front)
-        self.camera_right = pyrr.vector.normalise(pyrr.vector3.cross(self.camera_front, pyrr.Vector3([0.0, 1.0, 0.0])))
-        self.camera_up = pyrr.vector.normalise(pyrr.vector3.cross(self.camera_right, self.camera_front))
+        self.player_front = pyrr.vector.normalise(front)
+        self.player_right = pyrr.vector.normalise(pyrr.vector3.cross(self.player_front, pyrr.Vector3([0.0, 1.0, 0.0])))
+        self.player_up = pyrr.vector.normalise(pyrr.vector3.cross(self.player_right, self.player_front))
 
     @staticmethod
     def look_at(position, target, world_up):
@@ -1126,6 +1116,24 @@ class Camera:
         rotation[2][2] = z_axis[2]
 
         return rotation * translation
+
+
+class Player(Camera):
+    def __init__(self, app):
+        super().__init__(app)
+        self.jumping = False
+        self.crouching = False
+        self.holding_walk = False
+        self.holding_jump = False
+        self.sprinting = False
+        self.flying = False
+        self.placing = False
+        self.breaking = False
+        self.sprint_delay = 0
+        self.place_delay = 0
+        self.break_delay = 0
+        self.fly_delay = 0
+        self.air_velocity = 0
 
 
 class VAO:
@@ -1245,6 +1253,17 @@ class Cube:
         back_vao = VAO(textures[5], Cube.back_v, INDICES, transpose=True)
         self.vaos = {"left": left_vao, "right": right_vao, "bottom": bottom_vao,
                      "top": top_vao, "front": front_vao, "back": back_vao}
+
+
+class Chunk:  # todo finish
+    def __init__(self, pos):
+        self.pos = pos
+        self.data = numpy.zeros((16, 16, 16), dtype=numpy.int32)
+
+
+class Block:  # todo finish
+    def __init__(self, id):
+        self.id = id
 
 
 class TextManager:
