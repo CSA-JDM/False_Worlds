@@ -449,7 +449,7 @@ class App:
                     i / scale, j / scale, octaves=octaves, persistence=persistence, lacunarity=lacunarity,
                     repeatx=size[0], repeaty=size[1], base=base
                 ) * 100 + 60)
-        for cx, cz in [[x_, z_] for x_ in range(-1, 2) for z_ in range(-1, 2)]:
+        for cx, cz in [[x, z] for x in range(-4, 5) for z in range(-4, 5)]:
             for x in range(cx * 16, cx * 16 + 16):
                 for z in range(cz * 16, cz * 16 + 16):
                     self.world[(x, 0, z)] = ["bedrock", ["right", "left", "top", "bottom", "front", "back"]]
@@ -880,7 +880,8 @@ class App:
                         x, y, z = side_values[side]
                         if (x, y, z) in self.world:
                             self.world[(x, y, z)][1].append(side)
-                            if len(self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data) > 0:
+                            if self.vaos_3d[self.world[(x, y, z)][0]].vaos[side] is not None and \
+                                    len(self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data) > 0:
                                 self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data = numpy.append(
                                     self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data,
                                     numpy.array([[x, y, z]], dtype=numpy.float32), 0
