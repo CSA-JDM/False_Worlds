@@ -293,19 +293,52 @@ class App:
                     ray_eye = pyrr.Vector4([*ray_eye.xy, -1.0, 0.0])
                     ray_wor = (numpy.linalg.inv(view) * ray_eye).xyz
                     self.ray_wor = pyrr.vector.normalise(ray_wor)
-                    for i in numpy.arange(1, 4, 0.01):
-                        ray_cam = self.player.player_pos + self.ray_wor * i
-                        ray_cam.y += 1.62
-                        self.ray_cam = ray_cam
-                        self.ray_i = i
-                        ray_cam.x, ray_cam.y, ray_cam.z = int(self.check_value(ray_cam.x, 0)), \
-                            int(self.check_value(ray_cam.y, 0)), int(self.check_value(ray_cam.z, 0))
-                        ray_cam = [int(axis) for axis in ray_cam]
-                        if tuple(ray_cam) in self.world:
-                            self.highlighted = numpy.array(ray_cam, dtype=numpy.float32)
-                            break
-                    if self.highlighted is not None and list(self.highlighted) != ray_cam:
-                        self.highlighted = None
+                    player_front = self.player.player_pos + self.ray_wor * 0.001
+                    player_front.y += 1.62
+                    player_front.x, player_front.y, player_front.z = int(self.check_value(player_front.x, 0)), \
+                        int(self.check_value(player_front.y, 0)), int(self.check_value(player_front.z, 0))
+                    player_front = [int(axis) for axis in player_front]
+                    if tuple(player_front) in self.world:
+                        self.ray_cam = player_front
+                        self.ray_i = 0.001
+                        self.highlighted = numpy.array(player_front, dtype=numpy.float32)
+                    else:
+                        points = [[0.001, 4]]
+                        new_points = []
+                        done = False
+                        i = 0
+                        while not done:
+                            new_points.clear()
+                            for point_set in points:
+                                new_points.append([point_set[0], (point_set[1] + point_set[0]) / 2])
+                                new_points.append([(point_set[1] + point_set[0]) / 2, point_set[1]])
+                                closest_point = self.player.player_pos + self.ray_wor * ((point_set[1] + point_set[0]) / 2)
+                                closest_point.y += 1.62
+                                closest_point.x, closest_point.y, closest_point.z = int(self.check_value(closest_point.x, 0)), \
+                                    int(self.check_value(closest_point.y, 0)), int(self.check_value(closest_point.z, 0))
+                                closest_point = [int(axis) for axis in closest_point]
+                                if tuple(closest_point) in self.world:
+                                    self.highlighted = numpy.array(closest_point, dtype=numpy.float32)
+                                    self.ray_cam = closest_point
+                                    self.ray_i = (point_set[1] + point_set[0]) / 2
+                                    done = True
+                                    break
+                            points = new_points.copy()
+                            i += 1
+                            if i > 4:
+                                break
+                    # for i in numpy.arange(1, 4, 0.01):
+                    #     ray_cam.y += 1.62
+                    #     self.ray_cam = ray_cam
+                    #     self.ray_i = i
+                    #     ray_cam.x, ray_cam.y, ray_cam.z = int(self.check_value(ray_cam.x, 0)), \
+                    #         int(self.check_value(ray_cam.y, 0)), int(self.check_value(ray_cam.z, 0))
+                    #     ray_cam = [int(axis) for axis in ray_cam]
+                    #     if tuple(ray_cam) in self.world:
+                    #         self.highlighted = numpy.array(ray_cam, dtype=numpy.float32)
+                    #         break
+                    # if self.highlighted is not None and list(self.highlighted) != ray_cam:
+                    #     self.highlighted = None
                 if self.in_inventory:
                     mx, my = glfw.get_cursor_pos(self.window)
                     self.vaos_2d["mouse_inventory"].instance_update(numpy.array(
