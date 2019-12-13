@@ -194,7 +194,17 @@ class App:
         self.player = Player(self)
         self.vaos_3d = dict()
         self.vaos_2d = dict()
+        self.visible_faces = {"right": list(), "left": list(), "bottom": list(),
+                              "top": list(), "back": list(), "front": list()}
         block_break = list()
+        normals = {
+            "left": (-1, 0, 0),
+            "right": (1, 0, 0),
+            "bottom": (1, -1, 0),
+            "top": (0, 1, 0),
+            "back": (0, 0, -1),
+            "front": (0, 0, 1)
+        }
         # endregion
 
         # region VAO Initialization
@@ -278,6 +288,7 @@ class App:
             self.time_p = time_n
             self.mouse_button_check(time_s)
             view = self.player.get_view_matrix()
+            p_pos = numpy.array(self.player.player_pos)
 
             if self.in_game:
                 if self.new_game:
@@ -293,40 +304,56 @@ class App:
                     ray_eye = pyrr.Vector4([*ray_eye.xy, -1.0, 0.0])
                     ray_wor = (numpy.linalg.inv(view) * ray_eye).xyz
                     self.ray_wor = pyrr.vector.normalise(ray_wor)
-                    player_front = self.player.player_pos + self.ray_wor * 0.001
-                    player_front.y += 1.62
-                    player_front.x, player_front.y, player_front.z = int(self.check_value(player_front.x, 0)), \
-                        int(self.check_value(player_front.y, 0)), int(self.check_value(player_front.z, 0))
-                    player_front = [int(axis) for axis in player_front]
-                    if tuple(player_front) in self.world:
-                        self.ray_cam = player_front
-                        self.ray_i = 0.001
-                        self.highlighted = numpy.array(player_front, dtype=numpy.float32)
-                    else:
-                        points = [[0.001, 4]]
-                        new_points = []
-                        done = False
-                        i = 0
-                        while not done:
-                            new_points.clear()
-                            for point_set in points:
-                                new_points.append([point_set[0], (point_set[1] + point_set[0]) / 2])
-                                new_points.append([(point_set[1] + point_set[0]) / 2, point_set[1]])
-                                closest_point = self.player.player_pos + self.ray_wor * ((point_set[1] + point_set[0]) / 2)
-                                closest_point.y += 1.62
-                                closest_point.x, closest_point.y, closest_point.z = int(self.check_value(closest_point.x, 0)), \
-                                    int(self.check_value(closest_point.y, 0)), int(self.check_value(closest_point.z, 0))
-                                closest_point = [int(axis) for axis in closest_point]
-                                if tuple(closest_point) in self.world:
-                                    self.highlighted = numpy.array(closest_point, dtype=numpy.float32)
-                                    self.ray_cam = closest_point
-                                    self.ray_i = (point_set[1] + point_set[0]) / 2
-                                    done = True
-                                    break
-                            points = new_points.copy()
-                            i += 1
-                            if i > 4:
-                                break
+                    self.ray_i = 4
+                    for side in self.visible_faces:
+                        for pos in self.visible_faces[side]:
+                            # o_pos_dict = {"left": (pos[0] - 1, *pos[1:]),
+                            #               "right": (pos[0] + 1, *pos[1:]),
+                            #               "bottom": (pos[0], pos[1] - 1, pos[2]),
+                            #               "top": (pos[0], pos[1] + 1, pos[2]),
+                            #               "back": (*pos[0:2], pos[2] - 1),
+                            #               "front": (*pos[0:2], pos[2] + 1)}
+                            if p_pos[0] - 4 < pos[0] < p_pos[0] + 4 and p_pos[1] - 4 < pos[1] < p_pos[1] + 4 and p_pos[2] - 4 < pos[2] < p_pos[2] + 4:
+                                denominator = numpy.dot(self.ray_wor, normals[side])
+                                ray_length = numpy.dot(p_pos, normals[side]) + numpy.linalg.norm(pos - p_pos) / denominator
+                                if denominator != 0 and 0 < ray_length < self.ray_i:
+                                    self.ray_cam = ray_length * self.ray_wor
+                                    self.ray_i = ray_length
+                                    self.highlighted = numpy.array(self.ray_cam, dtype=numpy.float32)
+                    # player_front = self.player.player_pos + self.ray_wor * 0.001
+                    # player_front.y += 1.62
+                    # player_front.x, player_front.y, player_front.z = int(self.check_value(player_front.x, 0)), \
+                    #                                                  int(self.check_value(player_front.y, 0)), int(
+                    #     self.check_value(player_front.z, 0))
+                    # player_front = [int(axis) for axis in player_front]
+                    # self.ray_i = 4
+                    # if tuple(player_front) in self.world:
+                    #     self.ray_cam = player_front
+                    #     self.ray_i = 0.001
+                    #     self.highlighted = numpy.array(player_front, dtype=numpy.float32)
+                    # else:
+                    #     points = [[0.001, 4]]
+                    #     new_points = []
+                    #     i = 0
+                    #     while True:
+                    #         new_points.clear()
+                    #         for point_set in points:
+                    #             new_points.append([point_set[0], (point_set[1] + point_set[0]) / 2])
+                    #             new_points.append([(point_set[1] + point_set[0]) / 2, point_set[1]])
+                    #             closest_point = self.player.player_pos + self.ray_wor * ((point_set[1] + point_set[0]) / 2)
+                    #             closest_point.y += 1.62
+                    #             closest_point.x, closest_point.y, closest_point.z = int(self.check_value(closest_point.x, 0)), \
+                    #                 int(self.check_value(closest_point.y, 0)), int(self.check_value(closest_point.z, 0))
+                    #             closest_point = [int(axis) for axis in closest_point]
+                    #             if tuple(closest_point) in self.world and \
+                    #                     (point_set[1] + point_set[0]) / 2 < self.ray_i:
+                    #                 self.highlighted = numpy.array(closest_point, dtype=numpy.float32)
+                    #                 self.ray_cam = closest_point
+                    #                 self.ray_i = (point_set[1] + point_set[0]) / 2
+                    #         points = new_points.copy()
+                    #         i += 1
+                    #         if i > 5:
+                    #             break
                     # for i in numpy.arange(1, 4, 0.01):
                     #     ray_cam.y += 1.62
                     #     self.ray_cam = ray_cam
@@ -482,7 +509,7 @@ class App:
                     i / scale, j / scale, octaves=octaves, persistence=persistence, lacunarity=lacunarity,
                     repeatx=size[0], repeaty=size[1], base=base
                 ) * 100 + 60)
-        for cx, cz in [[x, z] for x in range(-4, 5) for z in range(-4, 5)]:
+        for cx, cz in [[x, z] for x in range(-1, 2) for z in range(-1, 2)]:
             for x in range(cx * 16, cx * 16 + 16):
                 for z in range(cz * 16, cz * 16 + 16):
                     self.world[(x, 0, z)] = ["bedrock", ["right", "left", "top", "bottom", "front", "back"]]
@@ -533,6 +560,7 @@ class App:
                         numpy.append(instance_data[self.world[pos][0]][side], numpy.array([pos], dtype=numpy.float32), 0)
                 else:
                     instance_data[self.world[pos][0]][side] = numpy.array([pos], dtype=numpy.float32)
+                self.visible_faces[side].append(pos)
                 # self.batch_3d.add(4, GL_QUADS, getattr(self.world[pos], f"{side}_tex"),
                 #                   ("v3f", getattr(self.world[pos], f"{side}_pos")),
                 #                   ("t2f", (0, 0, 1, 0, 1, 1, 0, 1)))
