@@ -304,22 +304,21 @@ class App:
                     ray_eye = pyrr.Vector4([*ray_eye.xy, -1.0, 0.0])
                     ray_wor = (numpy.linalg.inv(view) * ray_eye).xyz
                     self.ray_wor = pyrr.vector.normalise(ray_wor)
-                    self.ray_i = 4
-                    for side in self.visible_faces:
-                        for pos in self.visible_faces[side]:
-                            # o_pos_dict = {"left": (pos[0] - 1, *pos[1:]),
-                            #               "right": (pos[0] + 1, *pos[1:]),
-                            #               "bottom": (pos[0], pos[1] - 1, pos[2]),
-                            #               "top": (pos[0], pos[1] + 1, pos[2]),
-                            #               "back": (*pos[0:2], pos[2] - 1),
-                            #               "front": (*pos[0:2], pos[2] + 1)}
-                            if p_pos[0] - 4 < pos[0] < p_pos[0] + 4 and p_pos[1] - 4 < pos[1] < p_pos[1] + 4 and p_pos[2] - 4 < pos[2] < p_pos[2] + 4:
-                                denominator = numpy.dot(self.ray_wor, normals[side])
-                                ray_length = numpy.dot(p_pos, normals[side]) + numpy.linalg.norm(pos - p_pos) / denominator
-                                if denominator != 0 and 0 < ray_length < self.ray_i:
-                                    self.ray_cam = ray_length * self.ray_wor
-                                    self.ray_i = ray_length
-                                    self.highlighted = numpy.array(self.ray_cam, dtype=numpy.float32)
+                    # for side in self.visible_faces:
+                    #     for pos in self.visible_faces[side]:
+                    #         # o_pos_dict = {"left": (pos[0] - 1, *pos[1:]),
+                    #         #               "right": (pos[0] + 1, *pos[1:]),
+                    #         #               "bottom": (pos[0], pos[1] - 1, pos[2]),
+                    #         #               "top": (pos[0], pos[1] + 1, pos[2]),
+                    #         #               "back": (*pos[0:2], pos[2] - 1),
+                    #         #               "front": (*pos[0:2], pos[2] + 1)}
+                    #         if p_pos[0] - 4 < pos[0] < p_pos[0] + 4 and p_pos[1] - 4 < pos[1] < p_pos[1] + 4 and p_pos[2] - 4 < pos[2] < p_pos[2] + 4:
+                    #             denominator = numpy.dot(self.ray_wor, normals[side])
+                    #             ray_length = numpy.dot(p_pos, normals[side]) + numpy.linalg.norm(pos - p_pos) / denominator
+                    #             if denominator != 0 and 0 < ray_length < self.ray_i:
+                    #                 self.ray_cam = ray_length * self.ray_wor
+                    #                 self.ray_i = ray_length
+                    #                 self.highlighted = numpy.array(self.ray_cam, dtype=numpy.float32)
                     # player_front = self.player.player_pos + self.ray_wor * 0.001
                     # player_front.y += 1.62
                     # player_front.x, player_front.y, player_front.z = int(self.check_value(player_front.x, 0)), \
@@ -354,9 +353,20 @@ class App:
                     #         i += 1
                     #         if i > 5:
                     #             break
+                    self.s_ray_wor = self.player.player_pos + self.ray_wor * 0.01
+                    self.e_ray_wor = self.player.player_pos + self.ray_wor * 4
+                    self.s_ray_wor.x, self.s_ray_wor.y, self.s_ray_wor.z = int(self.check_value(self.s_ray_wor.x, 0)), \
+                        int(self.check_value(self.s_ray_wor.y, 0)), int(self.check_value(self.s_ray_wor.z, 0))
+                    self.e_ray_wor.x, self.e_ray_wor.y, self.e_ray_wor.z = int(self.check_value(self.e_ray_wor.x, 0)), \
+                        int(self.check_value(self.e_ray_wor.y, 0)), int(self.check_value(self.e_ray_wor.z, 0))
+                    for pos in range(2):
+                        for axis in range(self.s_ray_wor[pos] - self.e_ray_wor[pos]):
+                            pass
+                        # todo HOW DO I REVERSE ENGINEER POSITION FROM THIS
                     # for i in numpy.arange(1, 4, 0.01):
+                    #     ray_cam = self.player.player_pos + self.ray_wor * i
                     #     ray_cam.y += 1.62
-                    #     self.ray_cam = ray_cam
+                    #     self.ray_cam = ray_cam.copy()
                     #     self.ray_i = i
                     #     ray_cam.x, ray_cam.y, ray_cam.z = int(self.check_value(ray_cam.x, 0)), \
                     #         int(self.check_value(ray_cam.y, 0)), int(self.check_value(ray_cam.z, 0))
@@ -364,8 +374,8 @@ class App:
                     #     if tuple(ray_cam) in self.world:
                     #         self.highlighted = numpy.array(ray_cam, dtype=numpy.float32)
                     #         break
-                    # if self.highlighted is not None and list(self.highlighted) != ray_cam:
-                    #     self.highlighted = None
+                    if self.highlighted is not None and list(self.highlighted) != ray_cam:
+                        self.highlighted = None
                 if self.in_inventory:
                     mx, my = glfw.get_cursor_pos(self.window)
                     self.vaos_2d["mouse_inventory"].instance_update(numpy.array(
