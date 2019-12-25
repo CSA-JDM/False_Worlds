@@ -288,7 +288,7 @@ class App:
             self.time_p = time_n
             self.mouse_button_check(time_s)
             view = self.player.get_view_matrix()
-            p_pos = numpy.array(self.player.player_pos)
+            # p_pos = numpy.array(self.player.player_pos)
 
             if self.in_game:
                 if self.new_game:
@@ -304,77 +304,40 @@ class App:
                     ray_eye = pyrr.Vector4([*ray_eye.xy, -1.0, 0.0])
                     ray_wor = (numpy.linalg.inv(view) * ray_eye).xyz
                     self.ray_wor = pyrr.vector.normalise(ray_wor)
-                    # for side in self.visible_faces:
-                    #     for pos in self.visible_faces[side]:
-                    #         # o_pos_dict = {"left": (pos[0] - 1, *pos[1:]),
-                    #         #               "right": (pos[0] + 1, *pos[1:]),
-                    #         #               "bottom": (pos[0], pos[1] - 1, pos[2]),
-                    #         #               "top": (pos[0], pos[1] + 1, pos[2]),
-                    #         #               "back": (*pos[0:2], pos[2] - 1),
-                    #         #               "front": (*pos[0:2], pos[2] + 1)}
-                    #         if p_pos[0] - 4 < pos[0] < p_pos[0] + 4 and p_pos[1] - 4 < pos[1] < p_pos[1] + 4 and p_pos[2] - 4 < pos[2] < p_pos[2] + 4:
-                    #             denominator = numpy.dot(self.ray_wor, normals[side])
-                    #             ray_length = numpy.dot(p_pos, normals[side]) + numpy.linalg.norm(pos - p_pos) / denominator
-                    #             if denominator != 0 and 0 < ray_length < self.ray_i:
-                    #                 self.ray_cam = ray_length * self.ray_wor
-                    #                 self.ray_i = ray_length
-                    #                 self.highlighted = numpy.array(self.ray_cam, dtype=numpy.float32)
-                    # player_front = self.player.player_pos + self.ray_wor * 0.001
-                    # player_front.y += 1.62
-                    # player_front.x, player_front.y, player_front.z = int(self.check_value(player_front.x, 0)), \
-                    #                                                  int(self.check_value(player_front.y, 0)), int(
-                    #     self.check_value(player_front.z, 0))
-                    # player_front = [int(axis) for axis in player_front]
-                    # self.ray_i = 4
-                    # if tuple(player_front) in self.world:
-                    #     self.ray_cam = player_front
-                    #     self.ray_i = 0.001
-                    #     self.highlighted = numpy.array(player_front, dtype=numpy.float32)
-                    # else:
-                    #     points = [[0.001, 4]]
-                    #     new_points = []
-                    #     i = 0
-                    #     while True:
-                    #         new_points.clear()
-                    #         for point_set in points:
-                    #             new_points.append([point_set[0], (point_set[1] + point_set[0]) / 2])
-                    #             new_points.append([(point_set[1] + point_set[0]) / 2, point_set[1]])
-                    #             closest_point = self.player.player_pos + self.ray_wor * ((point_set[1] + point_set[0]) / 2)
-                    #             closest_point.y += 1.62
-                    #             closest_point.x, closest_point.y, closest_point.z = int(self.check_value(closest_point.x, 0)), \
-                    #                 int(self.check_value(closest_point.y, 0)), int(self.check_value(closest_point.z, 0))
-                    #             closest_point = [int(axis) for axis in closest_point]
-                    #             if tuple(closest_point) in self.world and \
-                    #                     (point_set[1] + point_set[0]) / 2 < self.ray_i:
-                    #                 self.highlighted = numpy.array(closest_point, dtype=numpy.float32)
-                    #                 self.ray_cam = closest_point
-                    #                 self.ray_i = (point_set[1] + point_set[0]) / 2
-                    #         points = new_points.copy()
-                    #         i += 1
-                    #         if i > 5:
-                    #             break
-                    self.s_ray_wor = self.player.player_pos + self.ray_wor * 0.01
-                    self.e_ray_wor = self.player.player_pos + self.ray_wor * 4
-                    self.s_ray_wor.x, self.s_ray_wor.y, self.s_ray_wor.z = int(self.check_value(self.s_ray_wor.x, 0)), \
-                        int(self.check_value(self.s_ray_wor.y, 0)), int(self.check_value(self.s_ray_wor.z, 0))
-                    self.e_ray_wor.x, self.e_ray_wor.y, self.e_ray_wor.z = int(self.check_value(self.e_ray_wor.x, 0)), \
-                        int(self.check_value(self.e_ray_wor.y, 0)), int(self.check_value(self.e_ray_wor.z, 0))
-                    for pos in range(2):
-                        for axis in range(self.s_ray_wor[pos] - self.e_ray_wor[pos]):
-                            pass
-                        # todo HOW DO I REVERSE ENGINEER POSITION FROM THIS
-                    # for i in numpy.arange(1, 4, 0.01):
-                    #     ray_cam = self.player.player_pos + self.ray_wor * i
-                    #     ray_cam.y += 1.62
-                    #     self.ray_cam = ray_cam.copy()
-                    #     self.ray_i = i
-                    #     ray_cam.x, ray_cam.y, ray_cam.z = int(self.check_value(ray_cam.x, 0)), \
-                    #         int(self.check_value(ray_cam.y, 0)), int(self.check_value(ray_cam.z, 0))
-                    #     ray_cam = [int(axis) for axis in ray_cam]
-                    #     if tuple(ray_cam) in self.world:
-                    #         self.highlighted = numpy.array(ray_cam, dtype=numpy.float32)
-                    #         break
-                    if self.highlighted is not None and list(self.highlighted) != ray_cam:
+                    self.s_ray_wor = self.player.player_pos.copy()
+                    self.s_ray_wor[1] += 1.62
+                    self.s_ray_wor = [int(self.check_value(axis, 0)) for axis in self.s_ray_wor]
+                    self.e_ray_wor = self.player.player_pos + (self.ray_wor * 4)
+                    self.e_ray_wor[1] += 1.62
+                    self.e_ray_wor = [int(self.check_value(axis, 0)) for axis in self.e_ray_wor]
+                    self.ray_i = 4
+                    air = True
+                    values = list()
+                    for pos in range(3):
+                        step = -1 if self.e_ray_wor[pos] < self.s_ray_wor[pos] else 1
+                        for value in range(self.s_ray_wor[pos], self.e_ray_wor[pos] + step, step):
+                            value -= self.player.player_pos[pos]
+                            if pos == 1:
+                                value -= 1.62
+                            i = (value / self.ray_wor[pos])
+                            if i not in values:
+                                values.append(i)
+                                ray_cam = self.player.player_pos + (self.ray_wor * i)
+                                ray_cam[1] += 1.62
+                                if self.ray_wor[pos] < 0:
+                                    ray_cam[pos] -= 1
+                                if ray_cam[pos] < 0:
+                                    ray_cam[pos] += 1
+                                try:
+                                    ray_cam = numpy.array([int(self.check_value(axis, 0)) for axis in ray_cam])
+                                except (OverflowError, ValueError):
+                                    pass
+                                if tuple(ray_cam) in self.world and values[-1] < self.ray_i:
+                                    air = False
+                                    self.highlighted = numpy.array(ray_cam, dtype=numpy.float32)
+                                    self.ray_cam = ray_cam.copy()
+                                    self.ray_i = values[-1]
+                    if self.highlighted is not None and air:
                         self.highlighted = None
                 if self.in_inventory:
                     mx, my = glfw.get_cursor_pos(self.window)
@@ -739,7 +702,7 @@ class App:
                 glfw.set_input_mode(self.window, glfw.CURSOR, glfw.CURSOR_HIDDEN)
             glfw.set_cursor_pos(self.window, self.width / 2, self.height / 2)
         elif key == glfw.KEY_P and action == glfw.PRESS:
-            self.player.player_pos = pyrr.Vector3([0.0, 101, 0.0])
+            self.player.player_pos = [0.0, 101, 0.0]
         if 0 <= key < 1024:
             if action == glfw.PRESS:
                 self.keys[key] = True
@@ -753,7 +716,7 @@ class App:
                 )
                 self.vaos_2d["active_bar"].instance_update()
         if self.new_game:
-            self.player.player_pos = pyrr.Vector3([0.0, 101, 0.0])
+            self.player.player_pos = [0.0, 101, 0.0]
             self.char_2.clear()
             self.char_4.clear()
             self.char_10.clear()
@@ -915,7 +878,7 @@ class App:
         else:
             self.player.fly_delay = 0
         if self.player.player_pos[1] < -64 and self.in_game:
-            self.player.player_pos = pyrr.Vector3([0.0, 101, 0.0])
+            self.player.player_pos = [0.0, 101, 0.0]
 
     def mouse_button_check(self, time_s):
         mouse_buttons = glfw.get_mouse_button(self.window, glfw.MOUSE_BUTTON_LEFT), \
@@ -1114,7 +1077,7 @@ class App:
 class Camera:
     def __init__(self, app):
         self.app = app
-        self.player_pos = pyrr.Vector3([0.0, 0.0, 0.0])
+        self.player_pos = [0.0, 0.0, 0.0]
         self.player_front = pyrr.Vector3([0.0, 0.0, -1.0])
         self.player_up = pyrr.Vector3([0.0, 1.0, 0.0])
         self.player_right = pyrr.Vector3([1.0, 0.0, 0.0])
@@ -1172,9 +1135,9 @@ class Camera:
         y_axis = pyrr.vector3.cross(z_axis, x_axis)
 
         translation = pyrr.Matrix44.identity()
-        translation[3][0] = -position.x
-        translation[3][1] = -position.y
-        translation[3][2] = -position.z
+        translation[3][0] = -position[0]
+        translation[3][1] = -position[1]
+        translation[3][2] = -position[2]
 
         rotation = pyrr.Matrix44.identity()
         rotation[0][0] = x_axis[0]
