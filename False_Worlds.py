@@ -145,7 +145,7 @@ SPECIAL_CHARACTER_DICT = {
     "8": ((64, 24), (5, 7)),
     "9": ((72, 24), (5, 7))
 }
-ASCII_PNG = Image.open("textures/ascii.png")
+ASCII_PNG = Image.open("textures/_ascii.png")
 # endregion
 
 
@@ -180,6 +180,7 @@ class App:
         self.paused = False
         self.new_game = False
         self.selected_block = ""
+        self.active_bar = 1
         self.highlighted = None
         self.breaking_block = None
         self.fps = 0
@@ -191,20 +192,11 @@ class App:
         self.projection_loc = glGetUniformLocation(shader, "projection")
         self.model_loc = glGetUniformLocation(shader, "model")
         self.view_loc = glGetUniformLocation(shader, "view")
+        self.rotation_loc = glGetUniformLocation(shader, "rotation")
         self.player = Player(self)
         self.vaos_3d = dict()
         self.vaos_2d = dict()
-        self.visible_faces = {"right": list(), "left": list(), "bottom": list(),
-                              "top": list(), "back": list(), "front": list()}
         block_break = list()
-        normals = {
-            "left": (-1, 0, 0),
-            "right": (1, 0, 0),
-            "bottom": (1, -1, 0),
-            "top": (0, 1, 0),
-            "back": (0, 0, -1),
-            "front": (0, 0, 1)
-        }
         # endregion
 
         # region VAO Initialization
@@ -212,53 +204,57 @@ class App:
         self.char_3 = TextManager(self, 3)
         self.char_4 = TextManager(self, 4)
         self.char_10 = TextManager(self, 10)
-        self.vaos_3d["grass"] = Cube(["textures/grass_side.png"] * 2 + ["textures/blocks/dirt.png"] +
-                                     ["textures/grass_top.png"] + ["textures/grass_side.png"] * 2)
-        highlighted_vao = VAO("textures/black.png", HIGHLIGHTED_CUBE, CUBE_INDICES_EDGES)
+        self.vaos_3d["grass"] = Cube(["textures/grass.png"] * 2 + ["textures/dirt.png"] +
+                                     ["textures/grass_top.png"] + ["textures/grass.png"] * 2)
+        self.vaos_3d["grass_item"] = Item("grass", True, ["textures/grass.png"] * 2 + ["textures/dirt.png"] +
+                                          ["textures/grass_top.png"] + ["textures/grass.png"] * 2)
+        highlighted_vao = VAO("textures/_black.png", HIGHLIGHTED_CUBE, CUBE_INDICES_EDGES)
         block_list = list()
-        for block in os.listdir("./textures/blocks"):
-            self.vaos_3d[block.split(".")[0]] = Cube([f"textures/blocks/{block}"] * 6)
-            block_list.append(f"textures/blocks/{block}")
+        for block in os.listdir("./textures"):
+            if block[0] != "_" and "grass" not in block:
+                self.vaos_3d[block.split(".")[0]] = Cube([f"textures/{block}"] * 6)
+                self.vaos_3d[f"{block.split('.')[0]}_item"] = Item(block.split(".")[0], True, [f"textures/{block}"] * 6)
+                block_list.append(f"textures/{block}")
         for stage in range(10):
-            block_break.append(VAO.load_texture(f"textures/destroy_stage_{stage}.png", transpose=True))
+            block_break.append(VAO.load_texture(f"textures/_destroy_stage_{stage}.png", transpose=True))
         self.vaos_2d["crosshair_v"] = VAO(
-            "textures/white.png", CROSSHAIR_V, INDICES, numpy.array([[624.0, 344.0, -0.6]], dtype=numpy.float32)
+            "textures/_white.png", CROSSHAIR_V, INDICES, numpy.array([[624.0, 344.0, -0.6]], dtype=numpy.float32)
         )
         self.vaos_2d["crosshair_h"] = VAO(
-            "textures/white.png", CROSSHAIR_H, INDICES, numpy.array([[624.0, 344.0, -0.6]], dtype=numpy.float32)
+            "textures/_white.png", CROSSHAIR_H, INDICES, numpy.array([[624.0, 344.0, -0.6]], dtype=numpy.float32)
         )
         self.vaos_2d["hotbar"] = VAO(
-            "textures/hotbar.png", HOTBAR, INDICES, numpy.array([[458.0, 676.0, -0.6]], dtype=numpy.float32)
+            "textures/_hotbar.png", HOTBAR, INDICES, numpy.array([[458.0, 676.0, -0.6]], dtype=numpy.float32)
         )
         self.vaos_2d["active_bar"] = VAO(
-            "textures/active_bar.png", ACTIVE_BAR, INDICES, numpy.array([[456.0, 674.0, -0.5]], dtype=numpy.float32)
+            "textures/_active_bar.png", ACTIVE_BAR, INDICES, numpy.array([[456.0, 674.0, -0.5]], dtype=numpy.float32)
         )
         for i in range(1, 10):
             self.vaos_2d[f"hotbar_{i}"] = VAO(
-                f"{block_list[i]}", HOTBAR_ICON, INDICES,
+                "textures/_tp.png", HOTBAR_ICON, INDICES,
                 numpy.array([[424.0 + i * 40, 682.0, -0.5]], dtype=numpy.float32)
             )
             self.vaos_2d[f"inventory_hotbar_slot_{i}"] = VAO(
-                f"{block_list[i]}", HOTBAR_ICON, INDICES,
+                "textures/_tp.png", HOTBAR_ICON, INDICES,
                 numpy.array([[444.0 + i * 36, 430.0, -0.3]], dtype=numpy.float32)
             )
-        for i in range(11, len(block_list)):
-            self.vaos_2d[f"inventory_slot_{i - 10}"] = VAO(
-                f"{block_list[i]}", HOTBAR_ICON, INDICES,
-                numpy.array([[480.0 + ((i - 11) % 9) * 36, 314.0 + int((i - 11) / 9) * 36, -0.3]], dtype=numpy.float32)
+        for i in range(1, 28):
+            self.vaos_2d[f"inventory_slot_{i}"] = VAO(
+                "textures/_tp.png", HOTBAR_ICON, INDICES,
+                numpy.array([[480.0 + ((i - 1) % 9) * 36, 314.0 + int((i - 1) / 9) * 36, -0.3]], dtype=numpy.float32)
             )
         self.selected_block = self.vaos_2d["hotbar_1"].texture_name
         self.vaos_2d["inventory"] = VAO(
-            "textures/crafting_table.png", INVENTORY, INDICES, numpy.array([[464.0, 146.0, -0.3]], dtype=numpy.float32)
+            "textures/_crafting_table.png", INVENTORY, INDICES, numpy.array([[464.0, 146.0, -0.3]], dtype=numpy.float32)
         )
         self.vaos_2d["active_inventory_slot"] = VAO(
-            "textures/white_tp.png", HOTBAR_ICON, INDICES
+            "textures/_white_tp.png", HOTBAR_ICON, INDICES
         )
         self.vaos_2d["paused"] = VAO(
-            "textures/black_tp.png", SCREEN, INDICES, numpy.array([[0.0, 0.0, -0.4]], dtype=numpy.float32)
+            "textures/_black_tp.png", SCREEN, INDICES, numpy.array([[0.0, 0.0, -0.4]], dtype=numpy.float32)
         )
         self.vaos_2d["mouse_inventory"] = VAO(
-            "textures/tp.png", HOTBAR_ICON, INDICES
+            "textures/_tp.png", HOTBAR_ICON, INDICES
         )
         # endregion
 
@@ -275,6 +271,8 @@ class App:
         translation_3d = pyrr.matrix44.create_from_translation([0.0, -1.65, 0.0])
         translation_2d = pyrr.matrix44.create_from_translation([0.0, 0.0, 0.0])
         view_2d = pyrr.matrix44.create_from_translation([0.0, 0.0, 0.0])
+        rotation = pyrr.matrix33.create_from_matrix44(translation_2d)
+        glUniformMatrix3fv(self.rotation_loc, 1, GL_FALSE, rotation)
         # endregion
         self.main_menu()
 
@@ -288,13 +286,12 @@ class App:
             self.time_p = time_n
             self.mouse_button_check(time_s)
             view = self.player.get_view_matrix()
-            # p_pos = numpy.array(self.player.player_pos)
 
             if self.in_game:
                 if self.new_game:
                     self.game_init()
                     # todo poll events?
-                if not self.paused:  # implement ray casting
+                if not self.paused:
                     self.do_movement(time_s)
                     view = self.player.get_view_matrix()
                     mx, my = glfw.get_cursor_pos(self.window)
@@ -320,19 +317,32 @@ class App:
                             if pos == 1:
                                 value -= 1.62
                             i = (value / self.ray_wor[pos])
-                            if i not in values:
+                            if i not in values:  # todo clean up code below
                                 values.append(i)
                                 ray_cam = self.player.player_pos + (self.ray_wor * i)
                                 ray_cam[1] += 1.62
-                                if self.ray_wor[pos] < 0:
-                                    ray_cam[pos] -= 1
+                                orig_ray_cam = ray_cam.copy()
+                                ray_cam[pos] -= 1
                                 if ray_cam[pos] < 0:
-                                    ray_cam[pos] += 1
+                                    ray_cam[pos] += 0.5  # arbitrary number between 0 and 1 to fix rounding ex: -2 -> -3
                                 try:
                                     ray_cam = numpy.array([int(self.check_value(axis, 0)) for axis in ray_cam])
                                 except (OverflowError, ValueError):
                                     pass
-                                if tuple(ray_cam) in self.world and values[-1] < self.ray_i:
+                                if tuple(ray_cam) in self.world and 0 < values[-1] < self.ray_i:
+                                    air = False
+                                    self.highlighted = numpy.array(ray_cam, dtype=numpy.float32)
+                                    self.ray_cam = ray_cam.copy()
+                                    self.ray_i = values[-1]
+                                # Copied portion below may not be necessary; a different fix probably exists
+                                ray_cam = orig_ray_cam.copy()
+                                if ray_cam[pos] < 0:
+                                    ray_cam[pos] += 0.5  # arbitrary number between 0 and 1 to fix rounding ex: -2 -> -3
+                                try:
+                                    ray_cam = numpy.array([int(self.check_value(axis, 0)) for axis in ray_cam])
+                                except (OverflowError, ValueError):
+                                    pass
+                                if tuple(ray_cam) in self.world and 0 < values[-1] < self.ray_i:
                                     air = False
                                     self.highlighted = numpy.array(ray_cam, dtype=numpy.float32)
                                     self.ray_cam = ray_cam.copy()
@@ -348,16 +358,34 @@ class App:
             glUniformMatrix4fv(self.projection_loc, 1, GL_FALSE, self.projection_3d)
             glUniformMatrix4fv(self.model_loc, 1, GL_FALSE, translation_3d)
             glUniformMatrix4fv(self.view_loc, 1, GL_FALSE, view)
+            item_list = list()
             for cube in self.vaos_3d.values():
-                for vao in cube.vaos.values():
-                    glBindVertexArray(vao.vao)
-                    if vao.instance_data is not None:
-                        glBindTexture(GL_TEXTURE_2D, vao.texture)
-                        glDrawElementsInstanced(
-                            GL_TRIANGLES, len(vao.indices), GL_UNSIGNED_INT, None, int(len(vao.instance_data))
-                        )
-                        glBindTexture(GL_TEXTURE_2D, 0)
-                    glBindVertexArray(0)
+                if isinstance(cube, Cube):
+                    for vao in cube.vaos.values():
+                        glBindVertexArray(vao.vao)
+                        if vao.instance_data is not None:
+                            glBindTexture(GL_TEXTURE_2D, vao.texture)
+                            glDrawElementsInstanced(
+                                GL_TRIANGLES, len(vao.indices), GL_UNSIGNED_INT, None, int(len(vao.instance_data))
+                            )
+                            glBindTexture(GL_TEXTURE_2D, 0)
+                        glBindVertexArray(0)
+                elif isinstance(cube, Item):
+                    item_list.append(cube)
+            for item in item_list:  # todo make item rotation more efficient
+                if item.rotation_matrix is not None:
+                    glUniformMatrix3fv(self.rotation_loc, 1, GL_FALSE, item.rotation_matrix)
+                    for vao in item.vaos.values():
+                        glBindVertexArray(vao.vao)
+                        if vao.instance_data is not None:
+                            glBindTexture(GL_TEXTURE_2D, vao.texture)
+                            glDrawElementsInstanced(
+                                GL_TRIANGLES, len(vao.indices), GL_UNSIGNED_INT, None, int(len(vao.instance_data))
+                            )
+                            glBindTexture(GL_TEXTURE_2D, 0)
+                        glBindVertexArray(0)
+            glUniformMatrix3fv(self.rotation_loc, 1, GL_FALSE, rotation)
+
             if self.highlighted is not None:
                 if not numpy.array_equal(self.highlighted, highlighted_vao.instance_data):
                     highlighted_vao.instance_update(self.highlighted)
@@ -406,13 +434,13 @@ class App:
         glfw.terminate()
 
     def main_menu(self):
-        self.char_10.add_text("F.I. World", [430.0, 120.0, -0.4])
+        self.char_10.add_text("False Worlds", [315.0, 120.0, -0.4])
         self.vaos_2d["new_game_button_outline"] = VAO(
-            "textures/normal_button_outline.png", BUTTON_OUTLINE, INDICES,
+            "textures/_normal_button_outline.png", BUTTON_OUTLINE, INDICES,
             numpy.array([[440.0, 290.0, -0.3]], dtype=numpy.float32)
         )
         self.vaos_2d["quit_button_outline"] = VAO(
-            "textures/normal_button_outline.png", BUTTON_OUTLINE, INDICES,
+            "textures/_normal_button_outline.png", BUTTON_OUTLINE, INDICES,
             numpy.array([[440.0, 340.0, -0.3]], dtype=numpy.float32)
         )
         self.char_3.add_text("New Game", [565.0, 300.0, -0.3])
@@ -427,7 +455,7 @@ class App:
         self.player.jumping = False
         self.player.crouching = False
         self.highlighted = None
-        self.player.air_velocity = 0
+        self.player.air_vel = 0
 
         # region Instructions
         self.char_4.add_text("Controls:", [200.0, 280.0, -0.4])
@@ -446,8 +474,6 @@ class App:
         self.char_2.add_text("* Esc - Pause game and open menu", [220.0, 540.0 - 10.0, -0.4])
         self.char_2.add_text("* P - Respawn at starting position", [220.0, 560.0 - 10.0, -0.4])
         self.char_4.add_text("Loading...", [548.0, 600.0, -0.4])
-        # endregion
-
         for vao in self.vaos_2d:
             if ("inventory" in vao and self.in_inventory) or (vao == "paused" and self.paused) or \
                     ("button" in vao and self.in_menu) or ("character_3" in vao and self.in_menu) or \
@@ -465,6 +491,7 @@ class App:
                     glBindTexture(GL_TEXTURE_2D, 0)
                 glBindVertexArray(0)
         glfw.swap_buffers(self.window)
+        # endregion
 
         # region World Initialization
         self.chunks.clear()
@@ -485,13 +512,12 @@ class App:
         for cx, cz in [[x, z] for x in range(-1, 2) for z in range(-1, 2)]:
             for x in range(cx * 16, cx * 16 + 16):
                 for z in range(cz * 16, cz * 16 + 16):
-                    self.world[(x, 0, z)] = ["bedrock", ["right", "left", "top", "bottom", "front", "back"]]
+                    self.world[(x, 0, z)] = Block("bedrock")
                     for y in range(1, y_values[x + 512][z + 512] - 5):
-                        self.world[(x, y, z)] = ["stone", ["right", "left", "top", "bottom", "front", "back"]]
+                        self.world[(x, y, z)] = Block("stone")
                     for y in range(y_values[x + 512][z + 512] - 5, y_values[x + 512][z + 512]):
-                        self.world[(x, y, z)] = ["dirt", ["right", "left", "top", "bottom", "front", "back"]]
-                    self.world[(x, y_values[x + 512][z + 512], z)] = \
-                        ["grass", ["right", "left", "top", "bottom", "front", "back"]]
+                        self.world[(x, y, z)] = Block("dirt")
+                    self.world[(x, y_values[x + 512][z + 512], z)] = Block("grass")
         for pos in self.world:
             o_pos_dict = {"right": (pos[0] - 1, *pos[1:]),
                           "left": (pos[0] + 1, *pos[1:]),
@@ -501,7 +527,7 @@ class App:
                           "back": (*pos[0:2], pos[2] + 1)}
             for o_pos in o_pos_dict:
                 if o_pos_dict[o_pos] in self.world:
-                    self.world[o_pos_dict[o_pos]][1].remove(o_pos)
+                    self.world[o_pos_dict[o_pos]].faces.remove(o_pos)
         instance_data = {"bedrock": {"right": numpy.array([], dtype=numpy.float32),
                                      "left": numpy.array([], dtype=numpy.float32),
                                      "top": numpy.array([], dtype=numpy.float32),
@@ -527,16 +553,14 @@ class App:
                                    "front": numpy.array([], dtype=numpy.float32),
                                    "back": numpy.array([], dtype=numpy.float32)}}
         for pos in self.world:
-            for side in self.world[pos][1]:
-                if len(instance_data[self.world[pos][0]][side]) > 0:
-                    instance_data[self.world[pos][0]][side] = \
-                        numpy.append(instance_data[self.world[pos][0]][side], numpy.array([pos], dtype=numpy.float32), 0)
+            for side in self.world[pos].faces:
+                if len(instance_data[self.world[pos].block_type][side]) > 0:
+                    instance_data[self.world[pos].block_type][side] = \
+                        numpy.append(
+                            instance_data[self.world[pos].block_type][side], numpy.array([pos], dtype=numpy.float32), 0
+                        )
                 else:
-                    instance_data[self.world[pos][0]][side] = numpy.array([pos], dtype=numpy.float32)
-                self.visible_faces[side].append(pos)
-                # self.batch_3d.add(4, GL_QUADS, getattr(self.world[pos], f"{side}_tex"),
-                #                   ("v3f", getattr(self.world[pos], f"{side}_pos")),
-                #                   ("t2f", (0, 0, 1, 0, 1, 1, 0, 1)))
+                    instance_data[self.world[pos].block_type][side] = numpy.array([pos], dtype=numpy.float32)
         for cube in instance_data:
             for side in instance_data[cube]:
                 self.vaos_3d[cube].vaos[side].instance_update(instance_data[cube][side])
@@ -557,35 +581,35 @@ class App:
                     if (440 / 1280) * self.width < dx < ((440 + 400) / 1280) * self.width and \
                             (240 / 720) * self.height < dy < ((240 + 40) / 720) * self.height:
                         if self.vaos_2d["return_button_outline"].texture_name != \
-                                "textures/highlighted_button_outline.png":
+                                "textures/_highlighted_button_outline.png":
                             self.vaos_2d["return_button_outline"].texture_name = \
-                                "textures/highlighted_button_outline.png"
+                                "textures/_highlighted_button_outline.png"
                             self.vaos_2d["return_button_outline"].texture = \
-                                VAO.load_texture("textures/highlighted_button_outline.png")
-                    elif self.vaos_2d["return_button_outline"].texture_name != "textures/normal_button_outline.png":
-                        self.vaos_2d["return_button_outline"].texture_name = "textures/normal_button_outline.png"
+                                VAO.load_texture("textures/_highlighted_button_outline.png")
+                    elif self.vaos_2d["return_button_outline"].texture_name != "textures/_normal_button_outline.png":
+                        self.vaos_2d["return_button_outline"].texture_name = "textures/_normal_button_outline.png"
                         self.vaos_2d["return_button_outline"].texture = \
-                            VAO.load_texture("textures/normal_button_outline.png")
+                            VAO.load_texture("textures/_normal_button_outline.png")
                 if (440 / 1280) * self.width < dx < ((440 + 400) / 1280) * self.width and \
                         (290 / 720) * self.height < dy < ((290 + 40) / 720) * self.height:
-                    if self.vaos_2d["new_game_button_outline"].texture_name != "highlighted_button_outline":
-                        self.vaos_2d["new_game_button_outline"].texture_name = "highlighted_button_outline"
+                    if self.vaos_2d["new_game_button_outline"].texture_name != "_highlighted_button_outline":
+                        self.vaos_2d["new_game_button_outline"].texture_name = "_highlighted_button_outline"
                         self.vaos_2d["new_game_button_outline"].texture = \
-                            VAO.load_texture("textures/highlighted_button_outline.png")
-                elif self.vaos_2d["new_game_button_outline"].texture_name != "normal_button_outline":
-                    self.vaos_2d["new_game_button_outline"].texture_name = "normal_button_outline"
+                            VAO.load_texture("textures/_highlighted_button_outline.png")
+                elif self.vaos_2d["new_game_button_outline"].texture_name != "_normal_button_outline":
+                    self.vaos_2d["new_game_button_outline"].texture_name = "_normal_button_outline"
                     self.vaos_2d["new_game_button_outline"].texture = \
-                        VAO.load_texture("textures/normal_button_outline.png")
+                        VAO.load_texture("textures/_normal_button_outline.png")
                 if (440 / 1280) * self.width < dx < ((440 + 400) / 1280) * self.width and \
                         (340 / 720) * self.height < dy < ((340 + 40) / 720) * self.height:
-                    if self.vaos_2d["quit_button_outline"].texture_name != "highlighted_button_outline":
-                        self.vaos_2d["quit_button_outline"].texture_name = "highlighted_button_outline"
+                    if self.vaos_2d["quit_button_outline"].texture_name != "_highlighted_button_outline":
+                        self.vaos_2d["quit_button_outline"].texture_name = "_highlighted_button_outline"
                         self.vaos_2d["quit_button_outline"].texture = \
-                            VAO.load_texture("textures/highlighted_button_outline.png")
-                elif self.vaos_2d["quit_button_outline"].texture_name != "normal_button_outline":
-                    self.vaos_2d["quit_button_outline"].texture_name = "normal_button_outline"
+                            VAO.load_texture("textures/_highlighted_button_outline.png")
+                elif self.vaos_2d["quit_button_outline"].texture_name != "_normal_button_outline":
+                    self.vaos_2d["quit_button_outline"].texture_name = "_normal_button_outline"
                     self.vaos_2d["quit_button_outline"].texture = \
-                        VAO.load_texture("textures/normal_button_outline.png")
+                        VAO.load_texture("textures/_normal_button_outline.png")
             if self.in_inventory:
                 for vao in self.vaos_2d:
                     if "slot" in vao and "inventory" in vao and "active" not in vao:
@@ -636,7 +660,6 @@ class App:
                         self.in_menu = False
                     elif (440 / 1280) * self.width < mouse_pos[0] < ((440 + 400) / 1280) * self.width and \
                             (290 / 720) * self.height < mouse_pos[1] < ((290 + 40) / 720) * self.height:
-                        self.char_10.add_text("F.I. World", [430.0, 120.0, -0.4])
                         self.paused = False
                         self.in_game = True
                         self.new_game = True
@@ -775,7 +798,7 @@ class App:
         if self.keys[glfw.KEY_SPACE]:
             if self.player.fly_delay > 0 and not self.player.holding_jump:
                 self.player.flying = not self.player.flying
-                self.player.air_velocity = 0
+                self.player.air_vel = 0
                 self.player.jumping = False
             elif self.player.fly_delay == 0 and not self.player.holding_jump:
                 self.player.fly_delay = 0.25
@@ -785,8 +808,8 @@ class App:
                      (int(x + 0.3), int(numpy.ceil(y - 1)), int(z - 0.3)) in self.world or
                      (int(x - 0.3), int(numpy.ceil(y - 1)), int(z + 0.3)) in self.world or
                      (int(x - 0.3), int(numpy.ceil(y - 1)), int(z - 0.3)) in self.world):
-                self.player.air_velocity = 8.95142
-                self.player.process_keyboard("UP", self.player.air_velocity * time_s)
+                self.player.air_vel = 8.95142
+                self.player.process_keyboard("UP", self.player.air_vel * time_s)
                 self.player.jumping = True
             if self.player.flying:
                 self.player.process_keyboard("UP", net_movement * 2)
@@ -805,37 +828,60 @@ class App:
         if self.player.crouching:
             cy += 0.3
         cx, cy, cz = self.check_value(cx, 0.3), self.check_value(cy, 0), self.check_value(cz, 0.3)
+        for item in self.vaos_3d:
+            if "item" in item:
+                self.vaos_3d[item].get_rotation(time_s)
+                add_item = False
+                for vao in self.vaos_3d[item].vaos:
+                    if self.vaos_3d[item].vaos[vao].instance_data is not None:
+                        for instance in self.vaos_3d[item].vaos[vao].instance_data:
+                            pos = instance.copy()
+                            pos[0] -= 0.5
+                            pos[2] -= 0.5
+                            pos = tuple(int(value) for value in pos)
+                            if (int(cx), int(cy), int(cz)) == pos:
+                                add_item = True
+                                self.vaos_3d[item].vaos[vao].instance_data = numpy.delete(
+                                    self.vaos_3d[item].vaos[vao].instance_data, numpy.where(
+                                        (self.vaos_3d[item].vaos[vao].instance_data[:, 0] == instance[0]) &
+                                        (self.vaos_3d[item].vaos[vao].instance_data[:, 1] == instance[1]) &
+                                        (self.vaos_3d[item].vaos[vao].instance_data[:, 2] == instance[2])
+                                    ), 0
+                                )
+                        self.vaos_3d[item].vaos[vao].instance_update()
+                if add_item:
+                    self.inventory_add(self.vaos_3d[item].item_name)
         if (int(cx + 0.3), int(numpy.ceil(cy - 1)), int(cz + 0.3)) not in self.world and \
                 (int(cx + 0.3), int(numpy.ceil(cy - 1)), int(cz - 0.3)) not in self.world and \
                 (int(cx - 0.3), int(numpy.ceil(cy - 1)), int(cz + 0.3)) not in self.world and \
                 (int(cx - 0.3), int(numpy.ceil(cy - 1)), int(cz - 0.3)) not in self.world and not self.player.flying:
-            if self.player.air_velocity > -78.4:
-                self.player.air_velocity -= (32 - .4) * time_s  # .4 is drag (a force, aka Newtons, so might not work)
-            if self.player.air_velocity <= -78.4:
-                self.player.air_velocity = -78.4
-            if (int(cx + 0.3), int(numpy.ceil(cy + self.player.air_velocity * time_s - 1)), int(cz + 0.3)) \
+            if self.player.air_vel > -78.4:
+                self.player.air_vel -= (32 - .4) * time_s  # .4 is drag (a force, aka Newtons, so might not work)
+            if self.player.air_vel <= -78.4:
+                self.player.air_vel = -78.4
+            if (int(cx + 0.3), int(numpy.ceil(cy + self.player.air_vel * time_s - 1)), int(cz + 0.3)) \
                     not in self.world and \
-                    (int(cx + 0.3), int(numpy.ceil(cy + self.player.air_velocity * time_s - 1)), int(cz - 0.3)) \
+                    (int(cx + 0.3), int(numpy.ceil(cy + self.player.air_vel * time_s - 1)), int(cz - 0.3)) \
                     not in self.world and \
-                    (int(cx - 0.3), int(numpy.ceil(cy + self.player.air_velocity * time_s - 1)), int(cz + 0.3)) \
+                    (int(cx - 0.3), int(numpy.ceil(cy + self.player.air_vel * time_s - 1)), int(cz + 0.3)) \
                     not in self.world and \
-                    (int(cx - 0.3), int(numpy.ceil(cy + self.player.air_velocity * time_s - 1)), int(cz - 0.3)) \
+                    (int(cx - 0.3), int(numpy.ceil(cy + self.player.air_vel * time_s - 1)), int(cz - 0.3)) \
                     not in self.world:
-                if (int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_velocity * time_s - 1)), int(cz + 0.3)) \
+                if (int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_vel * time_s - 1)), int(cz + 0.3)) \
                         not in self.world and \
-                        (int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_velocity * time_s - 1)), int(cz - 0.3)) \
+                        (int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_vel * time_s - 1)), int(cz - 0.3)) \
                         not in self.world and \
-                        (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_velocity * time_s - 1)), int(cz + 0.3)) \
+                        (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_vel * time_s - 1)), int(cz + 0.3)) \
                         not in self.world and \
-                        (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_velocity * time_s - 1)), int(cz - 0.3)) \
+                        (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_vel * time_s - 1)), int(cz - 0.3)) \
                         not in self.world:
-                    self.player.process_keyboard("UP", self.player.air_velocity * time_s)
+                    self.player.process_keyboard("UP", self.player.air_vel * time_s)
                 else:
                     if not self.player.crouching:
                         self.player.player_pos[1] = int(self.player.player_pos[1]) + 0.15
                     else:
                         self.player.player_pos[1] = int(self.player.player_pos[1]) - 0.15
-                    self.player.air_velocity = 0
+                    self.player.air_vel = 0
                     self.player.jumping = False
                     self.player.flying = False
             else:
@@ -843,7 +889,7 @@ class App:
                     self.player.player_pos[1] = round(self.player.player_pos[1])
                 else:
                     self.player.player_pos[1] = round(self.player.player_pos[1]) - 0.3
-                self.player.air_velocity = 0
+                self.player.air_vel = 0
                 self.player.jumping = False
                 self.player.flying = False
         elif not ((int(cx + 0.3), int(numpy.ceil(cy - 1)), int(cz + 0.3)) not in self.world and
@@ -854,16 +900,16 @@ class App:
                 self.player.player_pos[1] = round(self.player.player_pos[1])
             else:
                 self.player.player_pos[1] = round(self.player.player_pos[1]) - 0.3
-            self.player.air_velocity = 0
+            self.player.air_vel = 0
             self.player.jumping = False
             self.player.flying = False
-        elif not ((int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_velocity - 1)), int(cz + 0.3))
+        elif not ((int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_vel - 1)), int(cz + 0.3))
                   not in self.world and
-                  (int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_velocity - 1)), int(cz - 0.3))
+                  (int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_vel - 1)), int(cz - 0.3))
                   not in self.world and
-                  (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_velocity - 1)), int(cz + 0.3))
+                  (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_vel - 1)), int(cz + 0.3))
                   not in self.world and
-                  (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_velocity - 1)), int(cz - 0.3))
+                  (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_vel - 1)), int(cz - 0.3))
                   not in self.world):
             if not self.player.crouching:
                 self.player.player_pos[1] = int(self.player.player_pos[1]) + 0.149
@@ -883,7 +929,8 @@ class App:
     def mouse_button_check(self, time_s):
         mouse_buttons = glfw.get_mouse_button(self.window, glfw.MOUSE_BUTTON_LEFT), \
                         glfw.get_mouse_button(self.window, glfw.MOUSE_BUTTON_RIGHT)
-        if self.player.breaking and (self.highlighted is None or self.breaking_block.tolist() != self.highlighted.tolist()):
+        if self.player.breaking and \
+                (self.highlighted is None or self.breaking_block.tolist() != self.highlighted.tolist()):
             self.player.break_delay = 0.5
             self.breaking_block = self.highlighted
         if mouse_buttons[0]:
@@ -892,38 +939,56 @@ class App:
                     self.player.break_delay = 0.5
                     self.player.breaking = True
                     self.breaking_block = self.highlighted
-                if self.player.break_delay <= 0 and self.player.breaking and self.world[tuple(self.highlighted)][0] != "bedrock":
+                if self.player.break_delay <= 0 and self.player.breaking and \
+                        self.world[tuple(self.highlighted)].block_type != "bedrock":
+                    pos = self.highlighted.copy()
+                    pos[0] += 0.5
+                    pos[2] += 0.5
+                    block_name = self.world[tuple(self.highlighted)].block_type
+                    for vao in self.vaos_3d[f"{block_name}_item"].vaos:
+                        if self.vaos_3d[f"{block_name}_item"].vaos[vao].instance_data is not None:
+                            self.vaos_3d[f"{block_name}_item"].vaos[vao].instance_data = numpy.append(
+                                self.vaos_3d[f"{block_name}_item"].vaos[vao].instance_data,
+                                numpy.array([pos], dtype=numpy.float32), 0
+                            )
+                        else:
+                            self.vaos_3d[f"{block_name}_item"].vaos[vao].instance_data = numpy.array(
+                                [pos], dtype=numpy.float32
+                            )
+                        self.vaos_3d[f"{block_name}_item"].vaos[vao].instance_update()
                     px, py, pz = self.highlighted
                     px, py, pz = int(px), int(py), int(pz)
                     self.highlighted = tuple(self.highlighted)
-                    for side in self.world[self.highlighted][1]:
-                        self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data = numpy.delete(
-                            self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data,
-                            numpy.where((self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data[:, 0] ==
-                                         self.highlighted[0]) &
-                                        (self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data[:, 1] ==
-                                         self.highlighted[1]) &
-                                        (self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data[:, 2] ==
-                                         self.highlighted[2])), 0
+                    for side in self.world[self.highlighted].faces:
+                        self.vaos_3d[self.world[self.highlighted].block_type].vaos[side].instance_data = numpy.delete(
+                            self.vaos_3d[self.world[self.highlighted].block_type].vaos[side].instance_data,
+                            numpy.where(
+                                (self.vaos_3d[self.world[self.highlighted].block_type].vaos[side].instance_data[:, 0] ==
+                                 self.highlighted[0]) &
+                                (self.vaos_3d[self.world[self.highlighted].block_type].vaos[side].instance_data[:, 1] ==
+                                 self.highlighted[1]) &
+                                (self.vaos_3d[self.world[self.highlighted].block_type].vaos[side].instance_data[:, 2] ==
+                                 self.highlighted[2])
+                            ), 0
                         )
-                        self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_update()
+                        self.vaos_3d[self.world[self.highlighted].block_type].vaos[side].instance_update()
                     del self.world[self.highlighted]
                     side_values = {"left": (px + 1, py, pz), "bottom": (px, py + 1, pz), "back": (px, py, pz + 1),
                                    "right": (px - 1, py, pz), "top": (px, py - 1, pz), "front": (px, py, pz - 1)}
                     for side in side_values:
                         x, y, z = side_values[side]
                         if (x, y, z) in self.world:
-                            self.world[(x, y, z)][1].append(side)
-                            if self.vaos_3d[self.world[(x, y, z)][0]].vaos[side] is not None and \
-                                    len(self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data) > 0:
-                                self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data = numpy.append(
-                                    self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data,
+                            self.world[(x, y, z)].faces.append(side)
+                            if self.vaos_3d[self.world[(x, y, z)].block_type].vaos[side] is not None and \
+                                    len(self.vaos_3d[self.world[(x, y, z)].block_type].vaos[side].instance_data) > 0:
+                                self.vaos_3d[self.world[(x, y, z)].block_type].vaos[side].instance_data = numpy.append(
+                                    self.vaos_3d[self.world[(x, y, z)].block_type].vaos[side].instance_data,
                                     numpy.array([[x, y, z]], dtype=numpy.float32), 0
                                 )
                             else:
-                                self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data = \
+                                self.vaos_3d[self.world[(x, y, z)].block_type].vaos[side].instance_data = \
                                     numpy.array([[x, y, z]], dtype=numpy.float32)
-                            self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_update()
+                            self.vaos_3d[self.world[(x, y, z)].block_type].vaos[side].instance_update()
                     self.highlighted = None
                     self.breaking_block = None
                     self.player.breaking = False
@@ -965,15 +1030,18 @@ class App:
                         x, y, z = side_values[side]
                         if (x, y, z) in self.world:
                             if "ice" not in self.selected_block and "glass" not in self.selected_block:
-                                self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data = numpy.delete(
-                                    self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data,
+                                self.vaos_3d[self.world[(x, y, z)].block_type].vaos[side].instance_data = numpy.delete(
+                                    self.vaos_3d[self.world[(x, y, z)].block_type].vaos[side].instance_data,
                                     numpy.where(
-                                        (self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data[:, 0] == x) &
-                                        (self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data[:, 1] == y) &
-                                        (self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_data[:, 2] == z)
+                                        (self.vaos_3d[self.world[(x, y, z)].block_type].vaos[side].instance_data[:, 0]
+                                         == x) &
+                                        (self.vaos_3d[self.world[(x, y, z)].block_type].vaos[side].instance_data[:, 1]
+                                         == y) &
+                                        (self.vaos_3d[self.world[(x, y, z)].block_type].vaos[side].instance_data[:, 2]
+                                         == z)
                                     ), 0
                                 )
-                                self.vaos_3d[self.world[(x, y, z)][0]].vaos[side].instance_update()
+                                self.vaos_3d[self.world[(x, y, z)].block_type].vaos[side].instance_update()
                                 if side == "right":
                                     visible_blocks.remove("left")
                                 elif side == "left":
@@ -1002,19 +1070,22 @@ class App:
                             side = "front"
                         elif side_value == [0, 0, -1]:
                             side = "back"
-                        self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data = numpy.delete(
-                            self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data,
-                            numpy.where((self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data[:, 0] ==
-                                         self.highlighted[0]) &
-                                        (self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data[:, 1] ==
-                                         self.highlighted[1]) &
-                                        (self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_data[:, 2] ==
-                                         self.highlighted[2])), 0
+                        self.vaos_3d[self.world[self.highlighted].block_type].vaos[side].instance_data = numpy.delete(
+                            self.vaos_3d[self.world[self.highlighted].block_type].vaos[side].instance_data,
+                            numpy.where(
+                                (self.vaos_3d[self.world[self.highlighted].block_type].vaos[side].instance_data[:, 0] ==
+                                 self.highlighted[0]) &
+                                (self.vaos_3d[self.world[self.highlighted].block_type].vaos[side].instance_data[:, 1] ==
+                                 self.highlighted[1]) &
+                                (self.vaos_3d[self.world[self.highlighted].block_type].vaos[side].instance_data[:, 2] ==
+                                 self.highlighted[2])
+                            ), 0
                         )
-                        self.vaos_3d[self.world[self.highlighted][0]].vaos[side].instance_update()
+                        self.vaos_3d[self.world[self.highlighted].block_type].vaos[side].instance_update()
                     self.highlighted = None
-                    self.world[new_block] = [self.selected_block, visible_blocks]
-                    for side in self.world[new_block][1]:
+                    self.world[new_block] = Block(self.selected_block)
+                    self.world[new_block].faces = visible_blocks
+                    for side in self.world[new_block].faces:
                         if self.vaos_3d[self.selected_block].vaos[side].instance_data is not None and \
                                 len(self.vaos_3d[self.selected_block].vaos[side].instance_data) > 0:
                             self.vaos_3d[self.selected_block].vaos[side].instance_data = numpy.append(
@@ -1042,6 +1113,24 @@ class App:
             return x, y, z
         else:
             return hx, hy, hz
+
+    def inventory_add(self, item):
+        for i in range(1, 10):
+            if self.player.hotbar[i - 1] is None:
+                self.player.hotbar[i - 1] = item
+                self.vaos_2d[f"hotbar_{i}"].texture_name = item
+                self.vaos_2d[f"hotbar_{i}"].texture = VAO.load_texture(f"textures/{item}.png")
+                self.vaos_2d[f"inventory_hotbar_slot_{i}"].texture_name = item
+                self.vaos_2d[f"inventory_hotbar_slot_{i}"].texture = VAO.load_texture(f"textures/{item}.png")
+                if i == self.active_bar:
+                    self.selected_block = self.vaos_2d[f"hotbar_{i}"].texture_name
+                return
+        for i in range(1, 28):
+            if self.player.inventory[i - 1] is None:
+                self.player.inventory[i - 1] = item
+                self.vaos_2d[f"inventory_slot_{i}"].texture_name = item
+                self.vaos_2d[f"inventory_slot_{i}"].texture = VAO.load_texture(f"textures/{item}.png")
+                return
 
     def check_pos(self, axis, distance):
         x, y, z = self.player.player_pos
@@ -1168,7 +1257,9 @@ class Player(Camera):
         self.place_delay = 0
         self.break_delay = 0
         self.fly_delay = 0
-        self.air_velocity = 0
+        self.air_vel = 0
+        self.inventory = [None] * 27
+        self.hotbar = [None] * 9
 
 
 class VAO:
@@ -1280,6 +1371,7 @@ class Cube:
     ], dtype=numpy.float32)
 
     def __init__(self, textures):  # textures: left, right, bottom, top, front, back
+        self.textures = textures
         left_vao = VAO(textures[0], Cube.left_v, INDICES, transpose=True)
         right_vao = VAO(textures[1], Cube.right_v, INDICES, transpose=True)
         bottom_vao = VAO(textures[2], Cube.bottom_v, INDICES, transpose=True)
@@ -1297,8 +1389,64 @@ class Chunk:  # todo finish
 
 
 class Block:  # todo finish
-    def __init__(self, id):
-        self.id = id
+    def __init__(self, block_type):
+        self.block_type = block_type
+        self.faces = ["right", "left", "top", "bottom", "front", "back"]
+
+
+class Item:
+    front_v = numpy.array([
+        -0.25, 0.0, 0.25, 0.0, 0.0,
+        0.25, 0.0, 0.25, 1.0, 0.0,
+        0.25, 0.5, 0.25, 1.0, 1.0,
+        -0.25, 0.5, 0.25, 0.0, 1.0
+    ], dtype=numpy.float32)
+    back_v = numpy.array([
+        0.25, 0.0, -0.25, 0.0, 0.0,
+        -0.25, 0.0, -0.25, 1.0, 0.0,
+        -0.25, 0.5, -0.25, 1.0, 1.0,
+        0.25, 0.5, -0.25, 0.0, 1.0
+    ], dtype=numpy.float32)
+    right_v = numpy.array([
+        0.25, 0.0, -0.25, 1.0, 0.0,
+        0.25, 0.5, -0.25, 1.0, 1.0,
+        0.25, 0.5, 0.25, 0.0, 1.0,
+        0.25, 0.0, 0.25, 0.0, 0.0
+    ], dtype=numpy.float32)
+    left_v = numpy.array([
+        -0.25, 0.5, -0.25, 0.0, 1.0,
+        -0.25, 0.0, -0.25, 0.0, 0.0,
+        -0.25, 0.0, 0.25, 1.0, 0.0,
+        -0.25, 0.5, 0.25, 1.0, 1.0,
+    ], dtype=numpy.float32)
+    bottom_v = numpy.array([
+        -0.25, 0.0, -0.25, 0.0, 0.0,
+        0.25, 0.0, -0.25, 1.0, 0.0,
+        0.25, 0.0, 0.25, 1.0, 1.0,
+        -0.25, 0.0, 0.25, 0.0, 1.0,
+    ], dtype=numpy.float32)
+    top_v = numpy.array([
+        0.25, 0.5, -0.25, 0.0, 0.0,
+        -0.25, 0.5, -0.25, 1.0, 0.0,
+        -0.25, 0.5, 0.25, 1.0, 1.0,
+        0.25, 0.5, 0.25, 0.0, 1.0
+    ], dtype=numpy.float32)
+
+    def __init__(self, item_name, can_place, textures, pos=None):
+        self.item_name = item_name
+        self.can_place = can_place
+        self.rotation_i = float()
+        self.rotation_matrix = None
+        self.vaos = {"front": VAO(textures[4], Item.front_v, INDICES, transpose=True),
+                     "back": VAO(textures[5], Item.back_v, INDICES, transpose=True),
+                     "left": VAO(textures[0], Item.left_v, INDICES, transpose=True),
+                     "right": VAO(textures[1], Item.right_v, INDICES, transpose=True),
+                     "top": VAO(textures[3], Item.top_v, INDICES, transpose=True),
+                     "bottom": VAO(textures[2], Item.bottom_v, INDICES, transpose=True)}
+
+    def get_rotation(self, time_s):  # todo add separate rotation matrices (aka make it an input for the vertex shader)
+        self.rotation_i += time_s
+        self.rotation_matrix = pyrr.matrix33.create_from_y_rotation(self.rotation_i)
 
 
 class TextManager:
