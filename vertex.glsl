@@ -8,10 +8,11 @@ uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 uniform mat3 rotation;
+uniform mat3 scale;
 
 out vec2 v_texture;
 
 void main() {
-    gl_Position = projection * view * model * vec4(vec3(rotation * a_position) + a_offset, 1.0);
+    gl_Position = projection * view * model * vec4(vec3(rotation * scale * a_position) + a_offset, 1.0);
     v_texture = a_texture;
 }

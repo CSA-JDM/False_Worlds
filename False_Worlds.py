@@ -181,6 +181,7 @@ class App:
         self.new_game = False
         self.selected_block = ""
         self.active_bar = 1
+        self.mouse_value = None
         self.highlighted = None
         self.breaking_block = None
         self.fps = 0
@@ -193,6 +194,7 @@ class App:
         self.model_loc = glGetUniformLocation(shader, "model")
         self.view_loc = glGetUniformLocation(shader, "view")
         self.rotation_loc = glGetUniformLocation(shader, "rotation")
+        self.scale_loc = glGetUniformLocation(shader, "scale")
         self.player = Player(self)
         self.vaos_3d = dict()
         self.vaos_2d = dict()
@@ -200,18 +202,21 @@ class App:
         # endregion
 
         # region VAO Initialization
-        self.char_2 = TextManager(self, 2)
-        self.char_3 = TextManager(self, 3)
-        self.char_4 = TextManager(self, 4)
-        self.char_10 = TextManager(self, 10)
+        self.char = TextManager()
+        for i in range(1, 11):
+            self.char.scales[str(i)] = pyrr.matrix33.create_from_scale([i, i, i])
         self.vaos_3d["grass"] = Cube(["textures/grass.png"] * 2 + ["textures/dirt.png"] +
                                      ["textures/grass_top.png"] + ["textures/grass.png"] * 2)
+        self.vaos_3d["oak_log"] = Cube(["textures/oak_log.png"] * 2 + ["textures/oak_log_top.png"] * 2 +
+                                       ["textures/oak_log.png"] * 2)
+        self.vaos_3d["oak_log_item"] = Item("oak_log", True, ["textures/oak_log.png"] * 2 +
+                                            ["textures/oak_log_top.png"] * 2 + ["textures/oak_log.png"] * 2)
         self.vaos_3d["grass_item"] = Item("grass", True, ["textures/grass.png"] * 2 + ["textures/dirt.png"] +
                                           ["textures/grass_top.png"] + ["textures/grass.png"] * 2)
         highlighted_vao = VAO("textures/_black.png", HIGHLIGHTED_CUBE, CUBE_INDICES_EDGES)
         block_list = list()
         for block in os.listdir("./textures"):
-            if block[0] != "_" and "grass" not in block:
+            if block[0] != "_" and "grass" not in block and "oak_log" not in block and block != "block":
                 self.vaos_3d[block.split(".")[0]] = Cube([f"textures/{block}"] * 6)
                 self.vaos_3d[f"{block.split('.')[0]}_item"] = Item(block.split(".")[0], True, [f"textures/{block}"] * 6)
                 block_list.append(f"textures/{block}")
@@ -272,7 +277,9 @@ class App:
         translation_2d = pyrr.matrix44.create_from_translation([0.0, 0.0, 0.0])
         view_2d = pyrr.matrix44.create_from_translation([0.0, 0.0, 0.0])
         rotation = pyrr.matrix33.create_from_matrix44(translation_2d)
+        scale_d = pyrr.matrix33.create_from_matrix44(translation_2d)
         glUniformMatrix3fv(self.rotation_loc, 1, GL_FALSE, rotation)
+        glUniformMatrix3fv(self.scale_loc, 1, GL_FALSE, scale_d)
         # endregion
         self.main_menu()
 
@@ -289,7 +296,7 @@ class App:
 
             if self.in_game:
                 if self.new_game:
-                    self.game_init()
+                    self.game_init(scale_d)
                     # todo poll events?
                 if not self.paused:
                     self.do_movement(time_s)
@@ -372,7 +379,7 @@ class App:
                         glBindVertexArray(0)
                 elif isinstance(cube, Item):
                     item_list.append(cube)
-            for item in item_list:  # todo make item rotation more efficient
+            for item in item_list:  # todo make item transformation more efficient
                 if item.rotation_matrix is not None:
                     glUniformMatrix3fv(self.rotation_loc, 1, GL_FALSE, item.rotation_matrix)
                     for vao in item.vaos.values():
@@ -409,6 +416,28 @@ class App:
             glUniformMatrix4fv(self.projection_loc, 1, GL_FALSE, self.projection_2d)
             glUniformMatrix4fv(self.model_loc, 1, GL_FALSE, translation_2d)
             glUniformMatrix4fv(self.view_loc, 1, GL_FALSE, view_2d)
+            for vao in self.char.vaos:
+                glBindTexture(GL_TEXTURE_2D, self.char.vaos[vao].texture)
+                for instance in [instance_ for instance_ in self.char.instances if vao == instance_[0]]:
+                    active = True
+                    char, scale = instance[0], instance[2:]
+                    if "inventory" in instance:
+                        char, scale = instance[0], instance[2: instance.find("inventory") - 1]
+                        active = self.in_inventory
+                    if active:
+                        glUniformMatrix3fv(self.scale_loc, 1, GL_FALSE, self.char.scales[scale])
+                        self.char.vaos[vao].instance_update(self.char.instances[instance])
+                        if self.char.vaos[vao].instance_data is not None:
+                            glBindVertexArray(self.char.vaos[vao].vao)
+                            glDrawElementsInstanced(
+                                GL_TRIANGLES, len(self.char.vaos[vao].indices), GL_UNSIGNED_INT, None,
+                                int(len(self.char.vaos[vao].instance_data))
+                            )
+                            glBindVertexArray(0)
+                glBindVertexArray(self.char.vaos[vao].vao)
+                glBindTexture(GL_TEXTURE_2D, 0)
+                glBindVertexArray(0)
+            glUniformMatrix3fv(self.scale_loc, 1, GL_FALSE, scale_d)
             for vao in self.vaos_2d:
                 if ("inventory" in vao and self.in_inventory) or (vao == "paused" and self.paused) or \
                         ("button" in vao and self.in_menu) or ("character_3" in vao and self.in_menu) or \
@@ -427,14 +456,14 @@ class App:
                     glBindVertexArray(0)
 
             self.fps = round(time_s ** -1)
-            self.char_2.remove_text(f"{old_fps}", [1240.0, 20.0, -0.4])
-            self.char_2.add_text(f"{self.fps}", [1240.0, 20.0, -0.4])
+            self.char.remove_text(f"{old_fps}", [1240.0, 20.0, -0.4], 2)
+            self.char.add_text(f"{self.fps}", [1240.0, 20.0, -0.4], 2)
             glfw.swap_buffers(self.window)
 
         glfw.terminate()
 
     def main_menu(self):
-        self.char_10.add_text("False Worlds", [315.0, 120.0, -0.4])
+        self.char.add_text("False Worlds", [315.0, 120.0, -0.4], 10)
         self.vaos_2d["new_game_button_outline"] = VAO(
             "textures/_normal_button_outline.png", BUTTON_OUTLINE, INDICES,
             numpy.array([[440.0, 290.0, -0.3]], dtype=numpy.float32)
@@ -443,11 +472,11 @@ class App:
             "textures/_normal_button_outline.png", BUTTON_OUTLINE, INDICES,
             numpy.array([[440.0, 340.0, -0.3]], dtype=numpy.float32)
         )
-        self.char_3.add_text("New Game", [565.0, 300.0, -0.3])
-        self.char_3.add_text("Quit", [610.0, 350.0, -0.3])
-        self.char_2.add_text(f"{self.fps}", [1240.0, 20.0, -0.4])
+        self.char.add_text("New Game", [565.0, 300.0, -0.3], 3)
+        self.char.add_text("Quit", [610.0, 350.0, -0.3], 3)
+        self.char.add_text(f"{self.fps}", [1240.0, 20.0, -0.4], 2)
 
-    def game_init(self):
+    def game_init(self, scale):
         glfw.set_input_mode(self.window, glfw.CURSOR, glfw.CURSOR_DISABLED)
         self.mouse_visibility = False
         self.in_menu = False
@@ -458,38 +487,41 @@ class App:
         self.player.air_vel = 0
 
         # region Instructions
-        self.char_4.add_text("Controls:", [200.0, 280.0, -0.4])
-        self.char_2.add_text("* W - Walk forwards", [220.0, 340.0 - 10.0, -0.4])
-        self.char_2.add_text("* A - Walk backwards", [220.0, 360.0 - 10.0, -0.4])
-        self.char_2.add_text("* S - Walk to the left", [220.0, 380.0 - 10.0, -0.4])
-        self.char_2.add_text("* D - Walk to the right", [220.0, 400.0 - 10.0, -0.4])
-        self.char_2.add_text("* Left Mouse Button - Break the highlighted block", [220.0, 420.0 - 10.0, -0.4])
-        self.char_2.add_text("* Right Mouse Button - Place at side of highlighted block",
-                             [220.0, 440.0 - 10.0, -0.4])
-        self.char_2.add_text("* Space - Jump", [220.0, 460.0 - 10.0, -0.4])
-        self.char_2.add_text("* Shift - Crouch", [220.0, 480.0 - 10.0, -0.4])
-        self.char_2.add_text("* 1 to 9 - Switch which slot is active in the hotbar or action bar",
-                             [220.0, 500.0 - 10.0, -0.4])
-        self.char_2.add_text("* E - Access inventory", [220.0, 520.0 - 10.0, -0.4])
-        self.char_2.add_text("* Esc - Pause game and open menu", [220.0, 540.0 - 10.0, -0.4])
-        self.char_2.add_text("* P - Respawn at starting position", [220.0, 560.0 - 10.0, -0.4])
-        self.char_4.add_text("Loading...", [548.0, 600.0, -0.4])
-        for vao in self.vaos_2d:
-            if ("inventory" in vao and self.in_inventory) or (vao == "paused" and self.paused) or \
-                    ("button" in vao and self.in_menu) or ("character_3" in vao and self.in_menu) or \
-                    ("bar" in vao and self.in_game and "inventory" not in vao) or \
-                    ("cross" in vao and self.in_game) or \
-                    ("inventory" not in vao and vao != "paused" and "button" not in vao and
-                     "character_3" not in vao and "bar" not in vao and "cross" not in vao):
-                glBindVertexArray(self.vaos_2d[vao].vao)
-                if self.vaos_2d[vao].instance_data is not None:
-                    glBindTexture(GL_TEXTURE_2D, self.vaos_2d[vao].texture)
+        self.char.remove_text("New Game", [565.0, 300.0, -0.3], 3)
+        self.char.remove_text("Quit", [610.0, 350.0, -0.3], 3)
+        self.char.add_text("Controls:", [200.0, 280.0, -0.4], 4)
+        self.char.add_text("* W - Walk forwards", [220.0, 340.0 - 10.0, -0.4], 2)
+        self.char.add_text("* A - Walk backwards", [220.0, 360.0 - 10.0, -0.4], 2)
+        self.char.add_text("* S - Walk to the left", [220.0, 380.0 - 10.0, -0.4], 2)
+        self.char.add_text("* D - Walk to the right", [220.0, 400.0 - 10.0, -0.4], 2)
+        self.char.add_text("* Left Mouse Button - Break the highlighted block", [220.0, 420.0 - 10.0, -0.4], 2)
+        self.char.add_text("* Right Mouse Button - Place at side of highlighted block",
+                             [220.0, 440.0 - 10.0, -0.4], 2)
+        self.char.add_text("* Space - Jump", [220.0, 460.0 - 10.0, -0.4], 2)
+        self.char.add_text("* Shift - Crouch", [220.0, 480.0 - 10.0, -0.4], 2)
+        self.char.add_text("* 1 to 9 - Switch which slot is active in the hotbar or action bar",
+                             [220.0, 500.0 - 10.0, -0.4], 2)
+        self.char.add_text("* E - Access inventory", [220.0, 520.0 - 10.0, -0.4], 2)
+        self.char.add_text("* Esc - Pause game and open menu", [220.0, 540.0 - 10.0, -0.4], 2)
+        self.char.add_text("* P - Respawn at starting position", [220.0, 560.0 - 10.0, -0.4], 2)
+        self.char.add_text("Loading...", [548.0, 600.0, -0.4], 4)
+        for vao in self.char.vaos:
+            glBindTexture(GL_TEXTURE_2D, self.char.vaos[vao].texture)
+            for instance in [instance_ for instance_ in self.char.instances if vao == instance_[0]]:
+                char, scale = instance.split("_")
+                glUniformMatrix3fv(self.scale_loc, 1, GL_FALSE, self.char.scales[scale])
+                self.char.vaos[vao].instance_update(self.char.instances[instance])
+                if self.char.vaos[vao].instance_data is not None:
+                    glBindVertexArray(self.char.vaos[vao].vao)
                     glDrawElementsInstanced(
-                        GL_TRIANGLES, len(self.vaos_2d[vao].indices), GL_UNSIGNED_INT, None,
-                        int(len(self.vaos_2d[vao].instance_data))
+                        GL_TRIANGLES, len(self.char.vaos[vao].indices), GL_UNSIGNED_INT, None,
+                        int(len(self.char.vaos[vao].instance_data))
                     )
-                    glBindTexture(GL_TEXTURE_2D, 0)
-                glBindVertexArray(0)
+                    glBindVertexArray(0)
+            glBindVertexArray(self.char.vaos[vao].vao)
+            glBindTexture(GL_TEXTURE_2D, 0)
+            glBindVertexArray(0)
+        glUniformMatrix3fv(self.scale_loc, 1, GL_FALSE, scale)
         glfw.swap_buffers(self.window)
         # endregion
 
@@ -566,8 +598,8 @@ class App:
                 self.vaos_3d[cube].vaos[side].instance_update(instance_data[cube][side])
         # endregion
 
-        self.char_4.remove_text("Loading...", [548.0, 600.0, -0.4])
-        self.char_4.add_text("Press any key to continue", [380.0, 600.0, -0.4])
+        self.char.remove_text("Loading...", [548.0, 600.0, -0.4], 4)
+        self.char.add_text("Press any key to continue", [380.0, 600.0, -0.4], 4)
 
     def mouse_callback(self, window, dx, dy):
         if not self.mouse_visibility:
@@ -630,6 +662,7 @@ class App:
                 new_hotbar = int((self.vaos_2d["active_bar"].instance_data[0][0] - 416.0) / 40.0 - 1.0)
                 if new_hotbar < 1:
                     new_hotbar = 9
+                self.active_bar = new_hotbar
                 self.selected_block = self.vaos_2d[f"hotbar_{new_hotbar}"].texture_name
                 self.vaos_2d["active_bar"].instance_data = numpy.array(
                     [[new_hotbar * 40.0 + 416.0, 674.0, -0.5]], dtype=numpy.float32
@@ -640,6 +673,7 @@ class App:
                 new_hotbar = int((self.vaos_2d["active_bar"].instance_data[0][0] - 416.0) / 40.0 + 1.0)
                 if new_hotbar > 9:
                     new_hotbar = 1
+                self.active_bar = new_hotbar
                 self.selected_block = self.vaos_2d[f"hotbar_{new_hotbar}"].texture_name
                 self.vaos_2d["active_bar"].instance_data = numpy.array(
                     [[new_hotbar * 40.0 + 416.0, 674.0, -0.5]], dtype=numpy.float32
@@ -678,29 +712,187 @@ class App:
                         instance = tuple(self.vaos_2d["active_inventory_slot"].instance_data[0])
                         if f"inventory_slot_{int(((int(instance[0]) - 444) / 36) + (int(instance[1]) - 314) / 4)}" in \
                                 self.vaos_2d:
+                            area = "inventory"
                             mouse_vao = \
                                 f"inventory_slot_{int(((int(instance[0]) - 444) / 36) + (int(instance[1]) - 314) / 4)}"
+                            mouse_value = self.player.inventory[int(mouse_vao.split("_")[-1]) - 1]
                         elif f"inventory_hotbar_slot_{int(((int(instance[0]) - 444) / 36))}" in self.vaos_2d:
+                            area = "hotbar"
                             mouse_vao = f"inventory_hotbar_slot_{int(((int(instance[0]) - 444) / 36))}"
+                            mouse_value = self.player.hotbar[int(mouse_vao.split("_")[-1]) - 1]
                         else:
+                            area = None
                             mouse_vao = None
+                            mouse_value = None
+                        if mouse_value is not None:
+                            mouse_value = mouse_value.copy()
                         if mouse_vao is not None:
                             self.vaos_2d["mouse_inventory"].instance_update(numpy.array(
                                 [[int(instance[0]), int(instance[1]), -0.3]], dtype=numpy.float32
                             ))
-                            self.vaos_2d["mouse_inventory"].texture_name, \
-                                self.vaos_2d[mouse_vao].texture_name = self.vaos_2d[mouse_vao].texture_name, \
-                                self.vaos_2d["mouse_inventory"].texture_name
-                            self.vaos_2d["mouse_inventory"].texture, self.vaos_2d[mouse_vao].texture = \
-                                self.vaos_2d[mouse_vao].texture, self.vaos_2d["mouse_inventory"].texture
+                            if self.vaos_2d["mouse_inventory"].texture_name == \
+                                    self.vaos_2d[mouse_vao].texture_name and \
+                                    self.vaos_2d["mouse_inventory"].texture_name != "_tp":
+                                if area == "hotbar":
+                                    self.char.remove_text(
+                                        str(self.player.hotbar[int(mouse_vao[-1]) - 1][1]),
+                                        [424.0 + int(mouse_vao.split("_")[-1]) * 40, 682.0, -0.5], 2
+                                    )
+                                    self.char.remove_text(
+                                        str(self.player.hotbar[int(mouse_vao[-1]) - 1][1]),
+                                        [444.0 + int(mouse_vao.split("_")[-1]) * 36, 430.0, -0.3], 2, True
+                                    )
+                                    self.player.hotbar[int(mouse_vao.split("_")[-1]) - 1][1] += self.mouse_value[1]
+                                    if self.player.hotbar[int(mouse_vao.split("_")[-1]) - 1][1] > 64:
+                                        mouse_value[1] = self.player.hotbar[int(mouse_vao.split("_")[-1]) - 1][1] % 64
+                                        self.player.hotbar[int(mouse_vao.split("_")[-1]) - 1][1] = 64
+                                    else:
+                                        mouse_value = None
+                                        self.vaos_2d["mouse_inventory"].texture_name = "_tp"
+                                        self.vaos_2d["mouse_inventory"].texture = VAO.load_texture("textures/_tp.png")
+                                    self.char.add_text(
+                                        str(self.player.hotbar[int(mouse_vao[-1]) - 1][1]),
+                                        [424.0 + int(mouse_vao.split("_")[-1]) * 40, 682.0, -0.5], 2
+                                    )
+                                    self.char.add_text(
+                                        str(self.player.hotbar[int(mouse_vao[-1]) - 1][1]),
+                                        [444.0 + int(mouse_vao.split("_")[-1]) * 36, 430.0, -0.3], 2, True
+                                    )
+                                elif area == "inventory":
+                                    self.char.remove_text(
+                                        str(self.player.inventory[int(mouse_vao.split("_")[-1]) - 1][1]),
+                                        [480.0 + ((int(mouse_vao.split("_")[-1]) - 1) % 9) * 36,
+                                         314.0 + int((int(mouse_vao.split("_")[-1]) - 1) / 9) * 36, - 0.3], 2, True
+                                    )
+                                    self.player.inventory[int(mouse_vao.split("_")[-1]) - 1][1] += self.mouse_value[1]
+                                    if self.player.inventory[int(mouse_vao.split("_")[-1]) - 1][1] > 64:
+                                        mouse_value[1] = \
+                                            self.player.inventory[int(mouse_vao.split("_")[-1]) - 1][1] % 64
+                                        self.player.inventory[int(mouse_vao.split("_")[-1]) - 1][1] = 64
+                                    else:
+                                        mouse_value = None
+                                        self.vaos_2d["mouse_inventory"].texture_name = "_tp"
+                                        self.vaos_2d["mouse_inventory"].texture = VAO.load_texture("textures/_tp.png")
+                                    self.char.add_text(
+                                        str(self.player.inventory[int(mouse_vao.split("_")[-1]) - 1][1]),
+                                        [480.0 + ((int(mouse_vao.split("_")[-1]) - 1) % 9) * 36,
+                                         314.0 + int((int(mouse_vao.split("_")[-1]) - 1) / 9) * 36, - 0.3], 2, True
+                                    )
+                            else:
+                                self.vaos_2d["mouse_inventory"].texture_name, \
+                                    self.vaos_2d[mouse_vao].texture_name = self.vaos_2d[mouse_vao].texture_name, \
+                                    self.vaos_2d["mouse_inventory"].texture_name
+                                self.vaos_2d["mouse_inventory"].texture, self.vaos_2d[mouse_vao].texture = \
+                                    self.vaos_2d[mouse_vao].texture, self.vaos_2d["mouse_inventory"].texture
+                                if area == "hotbar":
+                                    if self.player.hotbar[int(mouse_vao.split("_")[-1]) - 1] is not None:
+                                        self.char.remove_text(
+                                            str(self.player.hotbar[int(mouse_vao[-1]) - 1][1]),
+                                            [424.0 + int(mouse_vao.split("_")[-1]) * 40, 682.0, -0.5], 2
+                                        )
+                                        self.char.remove_text(
+                                            str(self.player.hotbar[int(mouse_vao[-1]) - 1][1]),
+                                            [444.0 + int(mouse_vao.split("_")[-1]) * 36, 430.0, -0.3], 2, True
+                                        )
+                                    self.player.hotbar[int(mouse_vao.split("_")[-1]) - 1] = self.mouse_value
+                                    if self.player.hotbar[int(mouse_vao.split("_")[-1]) - 1] is not None:
+                                        self.char.add_text(
+                                            str(self.player.hotbar[int(mouse_vao[-1]) - 1][1]),
+                                            [424.0 + int(mouse_vao.split("_")[-1]) * 40, 682.0, -0.5], 2
+                                        )
+                                        self.char.add_text(
+                                            str(self.player.hotbar[int(mouse_vao[-1]) - 1][1]),
+                                            [444.0 + int(mouse_vao.split("_")[-1]) * 36, 430.0, -0.3], 2, True
+                                        )
+                                elif area == "inventory":
+                                    if self.player.inventory[int(mouse_vao.split("_")[-1]) - 1] is not None:
+                                        self.char.remove_text(
+                                            str(self.player.inventory[int(mouse_vao.split("_")[-1]) - 1][1]),
+                                            [480.0 + ((int(mouse_vao.split("_")[-1]) - 1) % 9) * 36,
+                                             314.0 + int((int(mouse_vao.split("_")[-1]) - 1) / 9) * 36, - 0.3], 2, True
+                                        )
+                                    self.player.inventory[int(mouse_vao.split("_")[-1]) - 1] = self.mouse_value
+                                    if self.player.inventory[int(mouse_vao.split("_")[-1]) - 1] is not None:
+                                        self.char.add_text(
+                                            str(self.player.inventory[int(mouse_vao.split("_")[-1]) - 1][1]),
+                                            [480.0 + ((int(mouse_vao.split("_")[-1]) - 1) % 9) * 36,
+                                             314.0 + int((int(mouse_vao.split("_")[-1]) - 1) / 9) * 36, - 0.3], 2, True
+                                        )
+                            self.mouse_value = mouse_value
+                            if self.mouse_value is not None:
+                                self.mouse_value = self.mouse_value.copy()
                             if "hotbar" in mouse_vao:
                                 self.vaos_2d[f"hotbar_{mouse_vao[-1]}"].texture_name = \
                                     self.vaos_2d[mouse_vao].texture_name
                                 self.vaos_2d[f"hotbar_{mouse_vao[-1]}"].texture = \
                                     self.vaos_2d[mouse_vao].texture
-                                self.selected_block = self.vaos_2d[
-                                    f"hotbar_{int((self.vaos_2d['active_bar'].instance_data[0][0] - 416.0) / 40.0)}"
-                                ].texture_name
+                                if int(mouse_vao[-1]) == self.active_bar:
+                                    self.selected_block = self.vaos_2d[mouse_vao].texture_name
+        elif button == glfw.MOUSE_BUTTON_RIGHT and action == glfw.PRESS:
+            if self.mouse_visibility:
+                if self.in_inventory:
+                    if len(self.vaos_2d["active_inventory_slot"].instance_data) > 0:
+                        instance = tuple(self.vaos_2d["active_inventory_slot"].instance_data[0])
+                        if f"inventory_slot_{int(((int(instance[0]) - 444) / 36) + (int(instance[1]) - 314) / 4)}" in \
+                                self.vaos_2d:
+                            area = "inventory"
+                            mouse_vao = \
+                                f"inventory_slot_{int(((int(instance[0]) - 444) / 36) + (int(instance[1]) - 314) / 4)}"
+                            mouse_value = self.player.inventory[int(mouse_vao.split("_")[-1]) - 1]
+                        elif f"inventory_hotbar_slot_{int(((int(instance[0]) - 444) / 36))}" in self.vaos_2d:
+                            area = "hotbar"
+                            mouse_vao = f"inventory_hotbar_slot_{int(((int(instance[0]) - 444) / 36))}"
+                            mouse_value = self.player.hotbar[int(mouse_vao.split("_")[-1]) - 1]
+                        else:
+                            area = None
+                            mouse_vao = None
+                            mouse_value = None
+                        if mouse_value is not None:
+                            mouse_value = mouse_value.copy()
+                        if mouse_vao is not None:
+                            self.vaos_2d["mouse_inventory"].instance_update(numpy.array(
+                                [[int(instance[0]), int(instance[1]), -0.3]], dtype=numpy.float32
+                            ))
+                            if self.vaos_2d["mouse_inventory"].texture_name in ["_tp", None] and \
+                                    getattr(self.player, area)[int(mouse_vao.split("_")[-1]) - 1] is not None and \
+                                    getattr(self.player, area)[int(mouse_vao.split("_")[-1]) - 1][1] > 1:
+                                self.vaos_2d["mouse_inventory"].texture_name = self.vaos_2d[mouse_vao].texture_name
+                                self.vaos_2d["mouse_inventory"].texture = self.vaos_2d[mouse_vao].texture
+                                if area == "hotbar":
+                                    self.char.remove_text(
+                                        str(self.player.hotbar[int(mouse_vao.split("_")[-1]) - 1][1]),
+                                        [424.0 + int(mouse_vao.split("_")[-1]) * 40, 682.0, -0.5], 2
+                                    )
+                                    self.char.remove_text(
+                                        str(self.player.hotbar[int(mouse_vao.split("_")[-1]) - 1][1]),
+                                        [444.0 + int(mouse_vao.split("_")[-1]) * 36, 430.0, -0.3], 2, True
+                                    )
+                                    mouse_value[1] = self.player.hotbar[int(mouse_vao.split("_")[-1]) - 1][1] // 2
+                                    self.player.hotbar[int(mouse_vao.split("_")[-1]) - 1][1] -= mouse_value[1]
+                                    self.char.add_text(
+                                        str(self.player.hotbar[int(mouse_vao.split("_")[-1]) - 1][1]),
+                                        [424.0 + int(mouse_vao.split("_")[-1]) * 40, 682.0, -0.5], 2
+                                    )
+                                    self.char.add_text(
+                                        str(self.player.hotbar[int(mouse_vao.split("_")[-1]) - 1][1]),
+                                        [444.0 + int(mouse_vao.split("_")[-1]) * 36, 430.0, -0.3], 2, True
+                                    )
+                                elif area == "inventory":
+                                    self.char.remove_text(
+                                        str(self.player.inventory[int(mouse_vao.split("_")[-1]) - 1][1]),
+                                        [480.0 + ((int(mouse_vao.split("_")[-1]) - 1) % 9) * 36,
+                                         314.0 + int((int(mouse_vao.split("_")[-1]) - 1) / 9) * 36, - 0.3], 2, True
+                                    )
+                                    mouse_value[1] = self.player.inventory[int(mouse_vao.split("_")[-1]) - 1][1] // 2
+                                    self.player.inventory[int(mouse_vao.split("_")[-1]) - 1][1] -= mouse_value[1]
+                                    self.char.add_text(
+                                        str(self.player.inventory[int(mouse_vao.split("_")[-1]) - 1][1]),
+                                        [480.0 + ((int(mouse_vao.split("_")[-1]) - 1) % 9) * 36,
+                                         314.0 + int((int(mouse_vao.split("_")[-1]) - 1) / 9) * 36, - 0.3], 2, True
+                                    )
+                                self.mouse_value = mouse_value
+                                if self.mouse_value is not None:
+                                    self.mouse_value = self.mouse_value.copy()
 
     def key_callback(self, window, key, scancode, action, mode):
         if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
@@ -738,12 +930,11 @@ class App:
                     [[416.0 + 40.0 * i, 674.0, -0.5]], dtype=numpy.float32
                 )
                 self.vaos_2d["active_bar"].instance_update()
+                self.active_bar = i
         if self.new_game:
             self.player.player_pos = [0.0, 101, 0.0]
-            self.char_2.clear()
-            self.char_4.clear()
-            self.char_10.clear()
-            self.char_2.add_text(f"{self.fps}", [1240.0, 20.0, -0.4])
+            self.char.clear()
+            self.char.add_text(f"{self.fps}", [1240.0, 20.0, -0.4], 2)
             glfw.set_input_mode(self.window, glfw.CURSOR, glfw.CURSOR_HIDDEN)
             self.mouse_visibility = False
             self.in_game = True
@@ -999,11 +1190,11 @@ class App:
             self.player.break_delay = 0
             self.player.breaking = False
         if mouse_buttons[1]:
-            if self.highlighted is not None and self.player.place_delay <= 0:
+            if not self.mouse_visibility and self.highlighted is not None and self.player.place_delay <= 0:
                 new_block = self.block_face()
                 x, y, z = self.player.player_pos
                 if self.player.crouching:
-                    y += 0.125
+                    y += 0.3
                 x, y, z = self.check_value(x, 0.3), self.check_value(y, 0), self.check_value(z, 0.3)
                 player_hitbox = ((int(x), int(y), int(z)),
                                  (int(x), int(y + 1), int(z)),
@@ -1021,6 +1212,7 @@ class App:
                                  (int(x - 0.3), int(y + 1.85), int(z + 0.3)),
                                  (int(x - 0.3), int(y + 1.85), int(z - 0.3)))
                 if new_block not in self.world and new_block not in player_hitbox and self.selected_block is not None:
+                    self.inventory_remove(["hotbar", self.active_bar], self.selected_block)
                     self.player.place_delay = 0.25
                     visible_blocks = ["right", "left", "top", "bottom", "front", "back"]
                     bx, by, bz = new_block
@@ -1115,21 +1307,72 @@ class App:
             return hx, hy, hz
 
     def inventory_add(self, item):
+        inventory_items = [item[0] for item in self.player.hotbar + self.player.inventory
+                           if item is not None and item[1] < 64]
         for i in range(1, 10):
-            if self.player.hotbar[i - 1] is None:
-                self.player.hotbar[i - 1] = item
+            if self.player.hotbar[i - 1] is None and item not in inventory_items:
+                self.player.hotbar[i - 1] = [item, 1]
                 self.vaos_2d[f"hotbar_{i}"].texture_name = item
                 self.vaos_2d[f"hotbar_{i}"].texture = VAO.load_texture(f"textures/{item}.png")
                 self.vaos_2d[f"inventory_hotbar_slot_{i}"].texture_name = item
                 self.vaos_2d[f"inventory_hotbar_slot_{i}"].texture = VAO.load_texture(f"textures/{item}.png")
+                self.char.add_text("1", [424.0 + i * 40, 682.0, -0.5], 2)
+                self.char.add_text("1", [444.0 + i * 36, 430.0, -0.3], 2, True)
                 if i == self.active_bar:
                     self.selected_block = self.vaos_2d[f"hotbar_{i}"].texture_name
                 return
+            elif self.player.hotbar[i - 1] is not None and \
+                    self.player.hotbar[i - 1][0] == item and self.player.hotbar[i - 1][1] < 64:
+                self.char.remove_text(str(self.player.hotbar[i - 1][1]), [424.0 + i * 40, 682.0, -0.5], 2)
+                self.char.remove_text(str(self.player.hotbar[i - 1][1]), [444.0 + i * 36, 430.0, -0.3], 2, True)
+                self.player.hotbar[i - 1][1] += 1
+                self.char.add_text(str(self.player.hotbar[i - 1][1]), [424.0 + i * 40, 682.0, -0.5], 2)
+                self.char.add_text(str(self.player.hotbar[i - 1][1]), [444.0 + i * 36, 430.0, -0.3], 2, True)
+                return
         for i in range(1, 28):
-            if self.player.inventory[i - 1] is None:
-                self.player.inventory[i - 1] = item
+            if self.player.inventory[i - 1] is None and item not in inventory_items:
+                self.player.inventory[i - 1] = [item, 1]
                 self.vaos_2d[f"inventory_slot_{i}"].texture_name = item
                 self.vaos_2d[f"inventory_slot_{i}"].texture = VAO.load_texture(f"textures/{item}.png")
+                self.char.add_text("1", [480.0 + ((i - 1) % 9) * 36, 314.0 + int((i - 1) / 9) * 36, -0.3], 2, True)
+                return
+            elif self.player.inventory[i - 1] is not None and \
+                    self.player.inventory[i - 1][0] == item and self.player.inventory[i - 1][1] < 64:
+                self.char.remove_text(str(self.player.inventory[i - 1][1]), [480.0 + ((i - 1) % 9) * 36, 314.0 + int((i - 1) / 9) * 36, -0.3], 2, True)
+                self.player.inventory[i - 1][1] += 1
+                self.char.add_text(str(self.player.inventory[i - 1][1]), [480.0 + ((i - 1) % 9) * 36, 314.0 + int((i - 1) / 9) * 36, -0.3], 2, True)
+                return
+
+    def inventory_remove(self, pos, item):
+        area, i = pos
+        if area == "hotbar":
+            if self.player.hotbar[i - 1][0] == item and self.player.hotbar[i - 1][1] > 1:
+                self.char.remove_text(str(self.player.hotbar[i - 1][1]), [424.0 + i * 40, 682.0, -0.5], 2)
+                self.char.remove_text(str(self.player.hotbar[i - 1][1]), [444.0 + i * 36, 430.0, -0.3], 2, True)
+                self.player.hotbar[i - 1][1] -= 1
+                self.char.add_text(str(self.player.hotbar[i - 1][1]), [424.0 + i * 40, 682.0, -0.5], 2)
+                self.char.add_text(str(self.player.hotbar[i - 1][1]), [444.0 + i * 36, 430.0, -0.3], 2, True)
+                return
+            elif self.player.hotbar[i - 1][0] == item and self.player.hotbar[i - 1][1] == 1:
+                self.char.remove_text(str(self.player.hotbar[i - 1][1]), [424.0 + i * 40, 682.0, -0.5], 2)
+                self.char.remove_text(str(self.player.hotbar[i - 1][1]), [444.0 + i * 36, 430.0, -0.3], 2, True)
+                self.player.hotbar[i - 1] = None
+                self.vaos_2d[f"hotbar_{i}"].texture_name = None
+                self.vaos_2d[f"hotbar_{i}"].texture = VAO.load_texture(f"textures/_tp.png")
+                self.vaos_2d[f"inventory_hotbar_slot_{i}"].texture_name = None
+                self.vaos_2d[f"inventory_hotbar_slot_{i}"].texture = VAO.load_texture(f"textures/_tp.png")
+                return
+        elif area == "inventory":
+            if self.player.inventory[i - 1][0] == item and self.player.inventory[i - 1][1] > 1:
+                self.char.remove_text(str(self.player.inventory[i - 1][1]), [424.0 + i * 40, 682.0, -0.5], 2)
+                self.player.inventory[i - 1][1] -= 1
+                self.char.add_text(str(self.player.inventory[i - 1][1]), [424.0 + i * 40, 682.0, -0.5], 2)
+                return
+            elif self.player.hotbar[i - 1][0] == item and self.player.hotbar[i - 1][1] == 1:
+                self.char.remove_text(str(self.player.inventory[i - 1][1]), [424.0 + i * 40, 682.0, -0.5], 2)
+                self.player.inventory[i - 1] = None
+                self.vaos_2d[f"inventory_slot_{i}"].texture_name = None
+                self.vaos_2d[f"inventory_slot_{i}"].texture = VAO.load_texture(f"textures/_tp.png")
                 return
 
     def check_pos(self, axis, distance):
@@ -1385,7 +1628,7 @@ class Cube:
 class Chunk:  # todo finish
     def __init__(self, pos):
         self.pos = pos
-        self.data = numpy.zeros((16, 16, 16), dtype=numpy.int32)
+        self.data = numpy.zeros((16, 16, 16), dtype=numpy.float32)
 
 
 class Block:  # todo finish
@@ -1450,106 +1693,85 @@ class Item:
 
 
 class TextManager:
-    def __init__(self, app, character_size):
-        self.app = app
-        self.character_size = character_size
-        character = numpy.array([0.0, 0.0, 0.0, 0.0, 0.0,
-                                 0.0, 8.0 * character_size, 0.0, 0.0, 1.0,
-                                 5.0 * character_size, 8.0 * character_size, 0.0, 1.0, 1.0,
-                                 5.0 * character_size, 0.0, 0.0, 1.0, 0.0], dtype=numpy.float32)
-        self.app.vaos_2d[f"character_{self.character_size}_ "] = VAO(
-            (ASCII_PNG, (0, 16), (8, 8)), character, INDICES
-        )
+    def __init__(self):
+        self.instances = dict()
+        self.vaos = dict()
+        character = numpy.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 8.0, 0.0, 0.0, 1.0, 5.0, 8.0, 0.0, 1.0, 1.0,
+                                 5.0, 0.0, 0.0, 1.0, 0.0], dtype=numpy.float32)
+        self.vaos[" "] = VAO((ASCII_PNG, (0, 16), (8, 8)), character, INDICES)
+        self.scales = dict()
         for char in CHARACTER_DICT:
-            character = numpy.array([0.0, 0.0, 0.0, 0.0, 0.0,
-                                     0.0, 8.0 * character_size, 0.0, 0.0, 1.0,
-                                     CHARACTER_DICT[char][0][1][0] * character_size,
-                                     8.0 * character_size, 0.0, 1.0, 1.0,
-                                     CHARACTER_DICT[char][0][1][0] * character_size, 0.0, 0.0, 1.0, 0.0],
-                                    dtype=numpy.float32)
-            self.app.vaos_2d[f"character_{self.character_size}_{char}"] = VAO(
-                (ASCII_PNG, *CHARACTER_DICT[char][0]), character, INDICES
-            )
-            character = numpy.array([0.0, 0.0, 0.0, 0.0, 0.0,
-                                     0.0, 8.0 * character_size, 0.0, 0.0, 1.0,
-                                     CHARACTER_DICT[char][1][1][0] * character_size,
-                                     8.0 * character_size, 0.0, 1.0, 1.0,
-                                     CHARACTER_DICT[char][1][1][0] * character_size, 0.0, 0.0, 1.0, 0.0],
-                                    dtype=numpy.float32)
-            self.app.vaos_2d[f"character_{self.character_size}_{char.upper()}"] = VAO(
+            character = numpy.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 8.0, 0.0, 0.0, 1.0,
+                                     CHARACTER_DICT[char][0][1][0], 8.0, 0.0, 1.0, 1.0,
+                                     CHARACTER_DICT[char][0][1][0], 0.0, 0.0, 1.0, 0.0], dtype=numpy.float32)
+            self.vaos[f"{char}"] = VAO((ASCII_PNG, *CHARACTER_DICT[char][0]), character, INDICES)
+            character = numpy.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 8.0, 0.0, 0.0, 1.0,
+                                     CHARACTER_DICT[char][1][1][0], 8.0, 0.0, 1.0, 1.0,
+                                     CHARACTER_DICT[char][1][1][0], 0.0, 0.0, 1.0, 0.0], dtype=numpy.float32)
+            self.vaos[f"{char.upper()}"] = VAO(
                 (ASCII_PNG, *CHARACTER_DICT[char][1]), character, INDICES
             )
         for char in SPECIAL_CHARACTER_DICT:
-            character = numpy.array([0.0, 0.0, 0.0, 0.0, 0.0,
-                                     0.0, 8.0 * character_size, 0.0, 0.0, 1.0,
-                                     SPECIAL_CHARACTER_DICT[char][1][0] * character_size,
-                                     8.0 * character_size, 0.0, 1.0, 1.0,
-                                     SPECIAL_CHARACTER_DICT[char][1][0] * character_size, 0.0, 0.0, 1.0, 0.0],
-                                    dtype=numpy.float32)
-            self.app.vaos_2d[f"character_{self.character_size}_{char}"] = VAO(
-                (ASCII_PNG, *SPECIAL_CHARACTER_DICT[char]), character, INDICES
-            )
+            character = numpy.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 8.0, 0.0, 0.0, 1.0,
+                                     SPECIAL_CHARACTER_DICT[char][1][0], 8.0, 0.0, 1.0, 1.0,
+                                     SPECIAL_CHARACTER_DICT[char][1][0], 0.0, 0.0, 1.0, 0.0], dtype=numpy.float32)
+            self.vaos[f"{char}"] = VAO((ASCII_PNG, *SPECIAL_CHARACTER_DICT[char]), character, INDICES)
 
-    def add_text(self, text, pos):
+    def add_text(self, text, pos, size, in_inventory=False):
         for character in text:
-            if self.app.vaos_2d[f"character_{self.character_size}_{character}"].instance_data is not None:
-                self.app.vaos_2d[f"character_{self.character_size}_{character}"].instance_update(
-                    numpy.array(
-                        self.app.vaos_2d[f"character_{self.character_size}_{character}"].instance_data.tolist() + [pos],
-                        dtype=numpy.float32
-                    )
+            if character is not None:
+                if in_inventory:
+                    if f"{character}_{size}_inventory" in self.instances:
+                        self.instances[f"{character}_{size}_inventory"] = numpy.append(
+                            self.instances[f"{character}_{size}_inventory"], numpy.array([pos], dtype=numpy.float32), 0
+                        )
+                    else:
+                        self.instances[f"{character}_{size}_inventory"] = numpy.array([pos], dtype=numpy.float32)
+                else:
+                    if f"{character}_{size}" in self.instances:
+                        self.instances[f"{character}_{size}"] = numpy.append(
+                            self.instances[f"{character}_{size}"], numpy.array([pos], dtype=numpy.float32), 0
+                        )
+                    else:
+                        self.instances[f"{character}_{size}"] = numpy.array([pos], dtype=numpy.float32)
+            if character in CHARACTER_DICT:
+                pos[0] += size * (CHARACTER_DICT[character][0][1][0] + 1)
+            elif character.lower() in CHARACTER_DICT:
+                pos[0] += size * (CHARACTER_DICT[character.lower()][1][1][0] + 1)
+            elif character in SPECIAL_CHARACTER_DICT:
+                pos[0] += size * (SPECIAL_CHARACTER_DICT[character][1][0] + 1)
+            else:
+                pos[0] += size * 5
+
+    def remove_text(self, text, pos, size, in_inventory=False):
+        for character in text:
+            if in_inventory:
+                self.instances[f"{character}_{size}_inventory"] = numpy.delete(
+                    self.instances[f"{character}_{size}_inventory"],
+                    numpy.where((self.instances[f"{character}_{size}_inventory"][:, 0] == pos[0]) &
+                                (self.instances[f"{character}_{size}_inventory"][:, 1] == pos[1]) &
+                                (self.instances[f"{character}_{size}_inventory"][:, 2] == pos[2])),
+                    0
                 )
             else:
-                self.app.vaos_2d[f"character_{self.character_size}_{character}"].instance_update(
-                    numpy.array([pos], dtype=numpy.float32)
+                self.instances[f"{character}_{size}"] = numpy.delete(
+                    self.instances[f"{character}_{size}"],
+                    numpy.where((self.instances[f"{character}_{size}"][:, 0] == pos[0]) &
+                                (self.instances[f"{character}_{size}"][:, 1] == pos[1]) &
+                                (self.instances[f"{character}_{size}"][:, 2] == pos[2])),
+                    0
                 )
             if character in CHARACTER_DICT:
-                pos[0] += self.character_size * (CHARACTER_DICT[character][0][1][0] + 1)
+                pos[0] += size * (CHARACTER_DICT[character][0][1][0] + 1)
             elif character.lower() in CHARACTER_DICT:
-                pos[0] += self.character_size * (CHARACTER_DICT[character.lower()][1][1][0] + 1)
+                pos[0] += size * (CHARACTER_DICT[character.lower()][1][1][0] + 1)
             elif character in SPECIAL_CHARACTER_DICT:
-                pos[0] += self.character_size * (SPECIAL_CHARACTER_DICT[character][1][0] + 1)
+                pos[0] += size * (SPECIAL_CHARACTER_DICT[character][1][0] + 1)
             else:
-                pos[0] += self.character_size * 5
-
-    def remove_text(self, text, pos):
-        for character in text:
-            self.app.vaos_2d[f"character_{self.character_size}_{character}"].instance_data = numpy.delete(
-                self.app.vaos_2d[f"character_{self.character_size}_{character}"].instance_data,
-                numpy.where(
-                    (self.app.vaos_2d[f"character_{self.character_size}_{character}"].instance_data[:, 0] == pos[0]) &
-                    (self.app.vaos_2d[f"character_{self.character_size}_{character}"].instance_data[:, 1] == pos[1]) &
-                    (self.app.vaos_2d[f"character_{self.character_size}_{character}"].instance_data[:, 2] == pos[2])
-                ), 0
-            )
-            self.app.vaos_2d[f"character_{self.character_size}_{character}"].instance_update()
-            if character in CHARACTER_DICT:
-                pos[0] += self.character_size * (CHARACTER_DICT[character][0][1][0] + 1)
-            elif character.lower() in CHARACTER_DICT:
-                pos[0] += self.character_size * (CHARACTER_DICT[character.lower()][1][1][0] + 1)
-            elif character in SPECIAL_CHARACTER_DICT:
-                pos[0] += self.character_size * (SPECIAL_CHARACTER_DICT[character][1][0] + 1)
-            else:
-                pos[0] += self.character_size * 5
+                pos[0] += size * 5
 
     def clear(self):
-        for char in CHARACTER_DICT:
-            if self.app.vaos_2d[f"character_{self.character_size}_{char}"].instance_data is not None and \
-                    len(self.app.vaos_2d[f"character_{self.character_size}_{char}"].instance_data) > 0:
-                self.app.vaos_2d[f"character_{self.character_size}_{char}"].instance_update(
-                    numpy.array([], dtype=numpy.float32)
-                )
-            if self.app.vaos_2d[f"character_{self.character_size}_{char.upper()}"].instance_data is not None and \
-                    len(self.app.vaos_2d[f"character_{self.character_size}_{char.upper()}"].instance_data) > 0:
-                self.app.vaos_2d[f"character_{self.character_size}_{char.upper()}"].instance_update(
-                    numpy.array([], dtype=numpy.float32)
-                )
-        for char in SPECIAL_CHARACTER_DICT:
-            if self.app.vaos_2d[f"character_{self.character_size}_{char}"].instance_data is not None and \
-                    len(self.app.vaos_2d[f"character_{self.character_size}_{char}"].instance_data) > 0:
-                self.app.vaos_2d[f"character_{self.character_size}_{char}"].instance_update(
-                    numpy.array([], dtype=numpy.float32)
-                )
+        self.instances.clear()
 
 
 if __name__ == '__main__':
