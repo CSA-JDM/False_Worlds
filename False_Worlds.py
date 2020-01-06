@@ -1022,16 +1022,113 @@ class App:
         for item in self.vaos_3d:
             if "item" in item:
                 self.vaos_3d[item].get_rotation(time_s)
-                add_item = False
+                add_item = 0
                 for vao in self.vaos_3d[item].vaos:
                     if self.vaos_3d[item].vaos[vao].instance_data is not None:
                         for instance in self.vaos_3d[item].vaos[vao].instance_data:
                             pos = instance.copy()
                             pos[0] -= 0.5
                             pos[2] -= 0.5
+                            pos = (int(pos[0]), float(pos[1]), int(pos[2]))
+                            old_instance = tuple(int(value) for value in pos)
+                            px, py, pz = pos
+                            if (px, int(numpy.ceil(py - 1)), pz) not in self.world:
+                                if self.vaos_3d[item].vaos[vao].item_data[old_instance][0] > -78.4:
+                                    self.vaos_3d[item].vaos[vao].item_data[old_instance][0] -= (32 - .4) * time_s
+                                    # ^ .4 is drag (a force, aka Newtons, so might not work)
+                                if self.vaos_3d[item].vaos[vao].item_data[old_instance][0] <= -78.4:
+                                    self.vaos_3d[item].vaos[vao].item_data[old_instance][0] = -78.4
+                                if (px, int(numpy.ceil(py + self.vaos_3d[item].vaos[vao].item_data[old_instance][0] * time_s - 1)), pz) \
+                                        not in self.world:
+                                    instance_i = numpy.where(
+                                        (self.vaos_3d[item].vaos[vao].instance_data[:, 0] == instance[0]) &
+                                        (self.vaos_3d[item].vaos[vao].instance_data[:, 1] == instance[1]) &
+                                        (self.vaos_3d[item].vaos[vao].instance_data[:, 2] == instance[2])
+                                    )
+                                    if len(instance_i[0]) > 1:
+                                        self.vaos_3d[item].vaos[vao].instance_data = numpy.delete(
+                                            self.vaos_3d[item].vaos[vao].instance_data, instance_i[0][1:], 0
+                                        )
+                                        instance_i = instance_i[0][0]
+                                    self.vaos_3d[item].vaos[vao].instance_data[instance_i, 1] += \
+                                        self.vaos_3d[item].vaos[vao].item_data[old_instance][0] * time_s
+                                    pos = instance.copy()
+                                    new_instance = (int(pos[0] - 0.5), int(pos[1]), int(pos[2] - 0.5))
+                                    if new_instance in self.vaos_3d[item].vaos[vao].item_data and \
+                                            new_instance != old_instance:
+                                        self.vaos_3d[item].vaos[vao].instance_data = numpy.delete(
+                                            self.vaos_3d[item].vaos[vao].instance_data, instance_i[0][0], 0
+                                        )
+                                        self.vaos_3d[item].vaos[vao].item_data[new_instance][1] += \
+                                            self.vaos_3d[item].vaos[vao].item_data[old_instance][1]
+                                        del self.vaos_3d[item].vaos[vao].item_data[old_instance]
+                                    elif new_instance != old_instance:
+                                        self.vaos_3d[item].vaos[vao].item_data[new_instance] = \
+                                            self.vaos_3d[item].vaos[vao].item_data[old_instance]
+                                        del self.vaos_3d[item].vaos[vao].item_data[old_instance]
+                                else:
+                                    instance_i = numpy.where(
+                                        (self.vaos_3d[item].vaos[vao].instance_data[:, 0] == instance[0]) &
+                                        (self.vaos_3d[item].vaos[vao].instance_data[:, 1] == instance[1]) &
+                                        (self.vaos_3d[item].vaos[vao].instance_data[:, 2] == instance[2])
+                                    )
+                                    if len(instance_i[0]) > 1:
+                                        self.vaos_3d[item].vaos[vao].instance_data = numpy.delete(
+                                            self.vaos_3d[item].vaos[vao].instance_data, instance_i[0][1:], 0
+                                        )
+                                        instance_i = instance_i[0][0]
+                                    self.vaos_3d[item].vaos[vao].instance_data[instance_i, 1] = \
+                                        round(float(self.vaos_3d[item].vaos[vao].instance_data[instance_i, 1]))
+                                    pos = instance.copy()
+                                    new_instance = (int(pos[0] - 0.5), int(pos[1]), int(pos[2] - 0.5))
+                                    if new_instance in self.vaos_3d[item].vaos[vao].item_data and \
+                                            new_instance != old_instance:
+                                        self.vaos_3d[item].vaos[vao].instance_data = numpy.delete(
+                                            self.vaos_3d[item].vaos[vao].instance_data, instance_i[0][0], 0
+                                        )
+                                        self.vaos_3d[item].vaos[vao].item_data[new_instance][1] += \
+                                            self.vaos_3d[item].vaos[vao].item_data[old_instance][1]
+                                        del self.vaos_3d[item].vaos[vao].item_data[old_instance]
+                                    elif new_instance != old_instance:
+                                        self.vaos_3d[item].vaos[vao].item_data[new_instance] = \
+                                            self.vaos_3d[item].vaos[vao].item_data[old_instance]
+                                        del self.vaos_3d[item].vaos[vao].item_data[old_instance]
+                                    self.vaos_3d[item].vaos[vao].item_data[new_instance][0] = 0
+                            elif (px, int(numpy.ceil(py - 1)), pz) in self.world:
+                                instance_i = numpy.where(
+                                    (self.vaos_3d[item].vaos[vao].instance_data[:, 0] == instance[0]) &
+                                    (self.vaos_3d[item].vaos[vao].instance_data[:, 1] == instance[1]) &
+                                    (self.vaos_3d[item].vaos[vao].instance_data[:, 2] == instance[2])
+                                )
+                                if len(instance_i[0]) > 1:
+                                    self.vaos_3d[item].vaos[vao].instance_data = numpy.delete(
+                                        self.vaos_3d[item].vaos[vao].instance_data, instance_i[0][1:], 0
+                                    )
+                                    instance_i = instance_i[0][0]
+                                self.vaos_3d[item].vaos[vao].instance_data[instance_i, 1] = \
+                                    round(float(self.vaos_3d[item].vaos[vao].instance_data[instance_i, 1]))
+                                pos = instance.copy()
+                                new_instance = (int(pos[0] - 0.5), int(pos[1]), int(pos[2] - 0.5))
+                                if new_instance in self.vaos_3d[item].vaos[vao].item_data and \
+                                        new_instance != old_instance:
+                                    self.vaos_3d[item].vaos[vao].instance_data = numpy.delete(
+                                        self.vaos_3d[item].vaos[vao].instance_data, instance_i[0][0], 0
+                                    )
+                                    self.vaos_3d[item].vaos[vao].item_data[new_instance][1] += \
+                                        self.vaos_3d[item].vaos[vao].item_data[old_instance][1]
+                                    del self.vaos_3d[item].vaos[vao].item_data[old_instance]
+                                elif new_instance != old_instance:
+                                    self.vaos_3d[item].vaos[vao].item_data[new_instance] = \
+                                        self.vaos_3d[item].vaos[vao].item_data[old_instance]
+                                    del self.vaos_3d[item].vaos[vao].item_data[old_instance]
+                                self.vaos_3d[item].vaos[vao].item_data[new_instance][0] = 0
+                            pos = instance.copy()
+                            pos[0] -= 0.5
+                            pos[2] -= 0.5
                             pos = tuple(int(value) for value in pos)
                             if (int(cx), int(cy), int(cz)) == pos:
-                                add_item = True
+                                add_item = self.vaos_3d[item].vaos[vao].item_data[new_instance][1]
+                                del self.vaos_3d[item].vaos[vao].item_data[new_instance]
                                 self.vaos_3d[item].vaos[vao].instance_data = numpy.delete(
                                     self.vaos_3d[item].vaos[vao].instance_data, numpy.where(
                                         (self.vaos_3d[item].vaos[vao].instance_data[:, 0] == instance[0]) &
@@ -1040,7 +1137,7 @@ class App:
                                     ), 0
                                 )
                         self.vaos_3d[item].vaos[vao].instance_update()
-                if add_item:
+                for _ in range(int(round(add_item))):
                     self.inventory_add(self.vaos_3d[item].item_name)
         if (int(cx + 0.3), int(numpy.ceil(cy - 1)), int(cz + 0.3)) not in self.world and \
                 (int(cx + 0.3), int(numpy.ceil(cy - 1)), int(cz - 0.3)) not in self.world and \
@@ -1134,6 +1231,7 @@ class App:
                         self.world[tuple(self.highlighted)].block_type != "bedrock":
                     pos = self.highlighted.copy()
                     pos[0] += 0.5
+                    pos[1] += (8.95142 / 2) * time_s
                     pos[2] += 0.5
                     block_name = self.world[tuple(self.highlighted)].block_type
                     for vao in self.vaos_3d[f"{block_name}_item"].vaos:
@@ -1146,6 +1244,7 @@ class App:
                             self.vaos_3d[f"{block_name}_item"].vaos[vao].instance_data = numpy.array(
                                 [pos], dtype=numpy.float32
                             )
+                        self.vaos_3d[f"{block_name}_item"].vaos[vao].item_data[tuple(int(value) for value in self.highlighted)] = [8.95142 / 2, 1]
                         self.vaos_3d[f"{block_name}_item"].vaos[vao].instance_update()
                     px, py, pz = self.highlighted
                     px, py, pz = int(px), int(py), int(pz)
@@ -1533,6 +1632,8 @@ class VAO:
         self.texture = self.load_texture(texture_file, transpose)
 
         glBindVertexArray(0)
+
+        self.item_data = dict()
 
     def instance_update(self, instance_data=None):
         if instance_data is not None:
