@@ -47,36 +47,15 @@
       <recent name="C:\Users\Sacred\PycharmProjects\False_Worlds\textures" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.False_Worlds (1)">
-    <configuration name="FI World (1)" type="PythonConfigurationType" factoryName="Python" temporary="true">
+  <component name="RunManager">
+    <configuration name="False_Worlds" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="False_WorldsV2" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs>
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
-      <option name="SDK_HOME" value="$PROJECT_DIR$/../False_Worlds\..\..\AppData\Local\Programs\Python\Python38\python.exe" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../F.I.-World" />
-      <option name="IS_MODULE_SDK" value="false" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/../F.I.-World/FI World.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="False_Worlds (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="False_WorldsV2" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="C:\Users\Sacred\AppData\Local\Programs\Python\Python38\python.exe" />
+      <option name="SDK_HOME" value="C:\Users\jmeadows\AppData\Local\Programs\Python\Python38\python.exe" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
       <option name="IS_MODULE_SDK" value="false" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
@@ -90,83 +69,9 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="False_Worlds (2)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="False_WorldsV2" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="C:\Users\Sacred\AppData\Local\Programs\Python\Python38\python.exe" />
-      <option name="WORKING_DIRECTORY" value="$USER_HOME$/Desktop/False_Worlds-6669ae1965cc48bcd6487eb9aeea6a13169b80b8" />
-      <option name="IS_MODULE_SDK" value="false" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$USER_HOME$/Desktop/False_Worlds-6669ae1965cc48bcd6487eb9aeea6a13169b80b8/False_Worlds.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="False_Worlds" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <module name="False_WorldsV2" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="$PROJECT_DIR$/../False_Worlds\..\..\AppData\Local\Programs\Python\Python38\python.exe" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="false" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="C:\Users\Sacred\PycharmProjects\False_Worlds\False_Worlds.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="test" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <module name="False_WorldsV2" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="C:\Users\jmeadows\AppData\Local\Programs\Python\Python38\python.exe" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="false" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/test.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <list>
-      <item itemvalue="Python.FI World (1)" />
-      <item itemvalue="Python.False_Worlds (1)" />
-      <item itemvalue="Python.False_Worlds" />
-      <item itemvalue="Python.test" />
-      <item itemvalue="Python.False_Worlds (2)" />
-    </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.False_Worlds (1)" />
-        <item itemvalue="Python.False_Worlds (2)" />
         <item itemvalue="Python.False_Worlds" />
-        <item itemvalue="Python.FI World (1)" />
-        <item itemvalue="Python.test" />
       </list>
     </recent_temporary>
   </component>
@@ -213,6 +118,10 @@
       <screen x="0" y="0" width="1920" height="1050" />
     </state>
     <state x="679" y="139" key="#FI_World_(1)/0.0.1920.1050@0.0.1920.1050" timestamp="1576087310422" />
+    <state x="679" y="139" key="#False_Worlds" timestamp="1579024638882">
+      <screen x="0" y="0" width="1920" height="1050" />
+    </state>
+    <state x="679" y="139" key="#False_Worlds/0.0.1920.1050@0.0.1920.1050" timestamp="1579024638882" />
     <state x="679" y="140" key="#False_Worlds_(1)" timestamp="1577561426075">
       <screen x="0" y="0" width="1920" height="1050" />
     </state>
@@ -221,10 +130,10 @@
       <screen x="0" y="0" width="1920" height="1050" />
     </state>
     <state x="679" y="140" key="#False_Worlds_(2)/-1600.190.1600.870/1920.180.1600.870/0.0.1920.1050@0.0.1920.1050" timestamp="1578872745977" />
-    <state x="414" y="179" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1576544796130">
+    <state x="414" y="179" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1579024634228">
       <screen x="0" y="0" width="1920" height="1050" />
     </state>
-    <state x="414" y="179" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1920.1050@0.0.1920.1050" timestamp="1575914580976" />
+    <state x="414" y="179" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1920.1050@0.0.1920.1050" timestamp="1579024634228" />
     <state x="414" y="179" key="#com.intellij.execution.impl.EditConfigurationsDialog/1920.184.1600.870/0.0.1920.1050/-1600.169.1600.870@0.0.1920.1050" timestamp="1576544796130" />
     <state x="679" y="139" key="#test" timestamp="1576263071195">
       <screen x="0" y="0" width="1920" height="1050" />
@@ -235,51 +144,51 @@
     </state>
     <state x="740" y="266" key="FileChooserDialogImpl/-1600.190.1600.870/0.0.1920.1050/1920.180.1600.870@0.0.1920.1050" timestamp="1578267426402" />
     <state x="740" y="266" key="FileChooserDialogImpl/-1600.190.1600.870/1920.180.1600.870/0.0.1920.1050@0.0.1920.1050" timestamp="1578769838073" />
-    <state width="1921" height="291" key="GridCell.Tab.0.bottom" timestamp="1578890271671">
+    <state width="1921" height="292" key="GridCell.Tab.0.bottom" timestamp="1579032649723">
       <screen x="0" y="0" width="1920" height="1050" />
     </state>
     <state width="1921" height="292" key="GridCell.Tab.0.bottom/-1600.171.1600.870/0.0.1920.1050/1920.161.1600.870@0.0.1920.1050" timestamp="1577418152347" />
     <state width="1921" height="291" key="GridCell.Tab.0.bottom/-1600.190.1600.870/0.0.1920.1050/1920.180.1600.870@0.0.1920.1050" timestamp="1578714339006" />
     <state width="1921" height="291" key="GridCell.Tab.0.bottom/-1600.190.1600.870/1920.180.1600.870/0.0.1920.1050@0.0.1920.1050" timestamp="1578890271671" />
-    <state width="1921" height="292" key="GridCell.Tab.0.bottom/0.0.1920.1050@0.0.1920.1050" timestamp="1576533044642" />
+    <state width="1921" height="292" key="GridCell.Tab.0.bottom/0.0.1920.1050@0.0.1920.1050" timestamp="1579032649723" />
     <state width="1921" height="292" key="GridCell.Tab.0.bottom/1920.184.1600.870/0.0.1920.1050/-1600.169.1600.870@0.0.1920.1050" timestamp="1576554362495" />
-    <state width="1921" height="291" key="GridCell.Tab.0.center" timestamp="1578890271671">
+    <state width="1921" height="292" key="GridCell.Tab.0.center" timestamp="1579032649723">
       <screen x="0" y="0" width="1920" height="1050" />
     </state>
     <state width="1921" height="292" key="GridCell.Tab.0.center/-1600.171.1600.870/0.0.1920.1050/1920.161.1600.870@0.0.1920.1050" timestamp="1577418152347" />
     <state width="1921" height="291" key="GridCell.Tab.0.center/-1600.190.1600.870/0.0.1920.1050/1920.180.1600.870@0.0.1920.1050" timestamp="1578714339006" />
     <state width="1921" height="291" key="GridCell.Tab.0.center/-1600.190.1600.870/1920.180.1600.870/0.0.1920.1050@0.0.1920.1050" timestamp="1578890271671" />
-    <state width="1921" height="292" key="GridCell.Tab.0.center/0.0.1920.1050@0.0.1920.1050" timestamp="1576533044642" />
+    <state width="1921" height="292" key="GridCell.Tab.0.center/0.0.1920.1050@0.0.1920.1050" timestamp="1579032649723" />
     <state width="1921" height="292" key="GridCell.Tab.0.center/1920.184.1600.870/0.0.1920.1050/-1600.169.1600.870@0.0.1920.1050" timestamp="1576554362495" />
-    <state width="1921" height="291" key="GridCell.Tab.0.left" timestamp="1578890271671">
+    <state width="1921" height="292" key="GridCell.Tab.0.left" timestamp="1579032649723">
       <screen x="0" y="0" width="1920" height="1050" />
     </state>
     <state width="1921" height="292" key="GridCell.Tab.0.left/-1600.171.1600.870/0.0.1920.1050/1920.161.1600.870@0.0.1920.1050" timestamp="1577418152347" />
     <state width="1921" height="291" key="GridCell.Tab.0.left/-1600.190.1600.870/0.0.1920.1050/1920.180.1600.870@0.0.1920.1050" timestamp="1578714339006" />
     <state width="1921" height="291" key="GridCell.Tab.0.left/-1600.190.1600.870/1920.180.1600.870/0.0.1920.1050@0.0.1920.1050" timestamp="1578890271671" />
-    <state width="1921" height="292" key="GridCell.Tab.0.left/0.0.1920.1050@0.0.1920.1050" timestamp="1576533044641" />
+    <state width="1921" height="292" key="GridCell.Tab.0.left/0.0.1920.1050@0.0.1920.1050" timestamp="1579032649723" />
     <state width="1921" height="292" key="GridCell.Tab.0.left/1920.184.1600.870/0.0.1920.1050/-1600.169.1600.870@0.0.1920.1050" timestamp="1576554362495" />
-    <state width="1921" height="291" key="GridCell.Tab.0.right" timestamp="1578890271671">
+    <state width="1921" height="292" key="GridCell.Tab.0.right" timestamp="1579032649723">
       <screen x="0" y="0" width="1920" height="1050" />
     </state>
     <state width="1921" height="292" key="GridCell.Tab.0.right/-1600.171.1600.870/0.0.1920.1050/1920.161.1600.870@0.0.1920.1050" timestamp="1577418152347" />
     <state width="1921" height="291" key="GridCell.Tab.0.right/-1600.190.1600.870/0.0.1920.1050/1920.180.1600.870@0.0.1920.1050" timestamp="1578714339006" />
     <state width="1921" height="291" key="GridCell.Tab.0.right/-1600.190.1600.870/1920.180.1600.870/0.0.1920.1050@0.0.1920.1050" timestamp="1578890271671" />
-    <state width="1921" height="292" key="GridCell.Tab.0.right/0.0.1920.1050@0.0.1920.1050" timestamp="1576533044642" />
+    <state width="1921" height="292" key="GridCell.Tab.0.right/0.0.1920.1050@0.0.1920.1050" timestamp="1579032649723" />
     <state width="1921" height="292" key="GridCell.Tab.0.right/1920.184.1600.870/0.0.1920.1050/-1600.169.1600.870@0.0.1920.1050" timestamp="1576554362495" />
-    <state x="461" y="167" key="SettingsEditor" timestamp="1578267440087">
+    <state x="461" y="167" key="SettingsEditor" timestamp="1578937901873">
       <screen x="0" y="0" width="1920" height="1050" />
     </state>
     <state x="461" y="167" key="SettingsEditor/-1600.190.1600.870/0.0.1920.1050/1920.180.1600.870@0.0.1920.1050" timestamp="1578267440087" />
-    <state x="461" y="167" key="SettingsEditor/0.0.1920.1050@0.0.1920.1050" timestamp="1575914439383" />
+    <state x="461" y="167" key="SettingsEditor/0.0.1920.1050@0.0.1920.1050" timestamp="1578937901873" />
     <state x="461" y="167" key="SettingsEditor/1920.184.1600.870/0.0.1920.1050/-1600.169.1600.870@0.0.1920.1050" timestamp="1576544789305" />
-    <state x="656" y="348" key="com.intellij.ide.util.TipDialog" timestamp="1578769419552">
+    <state x="656" y="348" key="com.intellij.ide.util.TipDialog" timestamp="1579024532256">
       <screen x="0" y="0" width="1920" height="1050" />
     </state>
     <state x="656" y="348" key="com.intellij.ide.util.TipDialog/-1600.171.1600.870/0.0.1920.1050/1920.161.1600.870@0.0.1920.1050" timestamp="1577411271086" />
     <state x="656" y="348" key="com.intellij.ide.util.TipDialog/-1600.190.1600.870/0.0.1920.1050/1920.180.1600.870@0.0.1920.1050" timestamp="1578701902570" />
     <state x="656" y="348" key="com.intellij.ide.util.TipDialog/-1600.190.1600.870/1920.180.1600.870/0.0.1920.1050@0.0.1920.1050" timestamp="1578769419552" />
-    <state x="656" y="348" key="com.intellij.ide.util.TipDialog/0.0.1920.1050@0.0.1920.1050" timestamp="1576519696119" />
+    <state x="656" y="348" key="com.intellij.ide.util.TipDialog/0.0.1920.1050@0.0.1920.1050" timestamp="1579024532256" />
     <state x="606" y="141" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser" timestamp="1578875187831">
       <screen x="0" y="0" width="1920" height="1050" />
     </state>
