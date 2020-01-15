@@ -674,120 +674,127 @@ class App:
         for item in self.vaos_3d:
             if "item" in item:
                 add_item = 0
-                for vao in self.vaos_3d[item].sides:
-                    if self.vaos_3d[item].sides[vao].transform is not None:
-                        for instance in self.vaos_3d[item].sides[vao].transform:
-                            pos = instance[3].copy()
-                            pos[0] -= 0.5
-                            pos[2] -= 0.5
-                            pos = (int(pos[0]), float(pos[1]), int(pos[2]))
-                            old_instance = tuple(int(value) for value in pos)
-                            px, py, pz = pos
-                            if (px, int(numpy.ceil(py - 1)), pz) not in self.world:
-                                if self.vaos_3d[item].sides[vao].item_data[old_instance][0] > -78.4:
-                                    self.vaos_3d[item].sides[vao].item_data[old_instance][0] -= (32 - .4) * time_s
-                                    # ^ .4 is drag (a force, aka Newtons, so might not work)
-                                if self.vaos_3d[item].sides[vao].item_data[old_instance][0] <= -78.4:
-                                    self.vaos_3d[item].sides[vao].item_data[old_instance][0] = -78.4
-                                if (px, int(numpy.ceil(py + self.vaos_3d[item].sides[vao].item_data[old_instance][0] * time_s - 1)), pz) \
-                                        not in self.world:
-                                    instance_i = numpy.where(
-                                        (self.vaos_3d[item].sides[vao].transform[:, 3, 0] == instance[3, 0]) &
-                                        (self.vaos_3d[item].sides[vao].transform[:, 3, 1] == instance[3, 1]) &
-                                        (self.vaos_3d[item].sides[vao].transform[:, 3, 2] == instance[3, 2])
-                                    )
-                                    if len(instance_i[0]) > 1:
-                                        self.vaos_3d[item].sides[vao].transform = numpy.delete(
-                                            self.vaos_3d[item].sides[vao].transform, instance_i[0][1:], 0
-                                        )
-                                        instance_i = instance_i[0][0]
-                                    self.vaos_3d[item].sides[vao].transform[instance_i, 3, 1] += \
-                                        self.vaos_3d[item].sides[vao].item_data[old_instance][0] * time_s
-                                    pos = instance[3].copy()
-                                    new_instance = (int(pos[0] - 0.5), int(pos[1]), int(pos[2] - 0.5))
-                                    if new_instance in self.vaos_3d[item].sides[vao].item_data and \
-                                            new_instance != old_instance:
-                                        self.vaos_3d[item].sides[vao].transform = numpy.delete(
-                                            self.vaos_3d[item].sides[vao].transform, instance_i[0][0], 0
-                                        )
-                                        self.vaos_3d[item].sides[vao].item_data[new_instance][1] += \
-                                            self.vaos_3d[item].sides[vao].item_data[old_instance][1]
-                                        del self.vaos_3d[item].sides[vao].item_data[old_instance]
-                                    elif new_instance != old_instance:
-                                        self.vaos_3d[item].sides[vao].item_data[new_instance] = \
-                                            self.vaos_3d[item].sides[vao].item_data[old_instance]
-                                        del self.vaos_3d[item].sides[vao].item_data[old_instance]
-                                else:
-                                    instance_i = numpy.where(
-                                        (self.vaos_3d[item].sides[vao].transform[:, 3, 0] == instance[3, 0]) &
-                                        (self.vaos_3d[item].sides[vao].transform[:, 3, 1] == instance[3, 1]) &
-                                        (self.vaos_3d[item].sides[vao].transform[:, 3, 2] == instance[3, 2])
-                                    )
-                                    if len(instance_i[0]) > 1:
-                                        self.vaos_3d[item].sides[vao].transform = numpy.delete(
-                                            self.vaos_3d[item].sides[vao].transform, instance_i[0][1:], 0
-                                        )
-                                        instance_i = instance_i[0][0]
-                                    self.vaos_3d[item].sides[vao].transform[instance_i, 3, 1] = \
-                                        round(float(self.vaos_3d[item].sides[vao].transform[instance_i, 3, 1]))
-                                    pos = instance[3].copy()
-                                    new_instance = (int(pos[0] - 0.5), int(pos[1]), int(pos[2] - 0.5))
-                                    if new_instance in self.vaos_3d[item].sides[vao].item_data and \
-                                            new_instance != old_instance:
-                                        self.vaos_3d[item].sides[vao].transform = numpy.delete(
-                                            self.vaos_3d[item].sides[vao].transform, instance_i[0][0], 0
-                                        )
-                                        self.vaos_3d[item].sides[vao].item_data[new_instance][1] += \
-                                            self.vaos_3d[item].sides[vao].item_data[old_instance][1]
-                                        del self.vaos_3d[item].sides[vao].item_data[old_instance]
-                                    elif new_instance != old_instance:
-                                        self.vaos_3d[item].sides[vao].item_data[new_instance] = \
-                                            self.vaos_3d[item].sides[vao].item_data[old_instance]
-                                        del self.vaos_3d[item].sides[vao].item_data[old_instance]
-                                    self.vaos_3d[item].sides[vao].item_data[new_instance][0] = 0
-                            elif (px, int(numpy.ceil(py - 1)), pz) in self.world:
+                if self.vaos_3d[item].top.transform is not None:
+                    for instance in self.vaos_3d[item].top.transform:
+                        pos = instance[3].copy()
+                        pos[0] -= 0.5
+                        pos[2] -= 0.5
+                        pos = (int(pos[0]), float(pos[1]), int(pos[2]))
+                        old_instance = tuple(int(value) for value in pos)
+                        px, py, pz = pos
+                        if (px, int(numpy.ceil(py - 1)), pz) not in self.world:
+                            if self.vaos_3d[item].top.item_data[old_instance][0] > -78.4:
+                                self.vaos_3d[item].top.item_data[old_instance][0] -= (32 - .4) * time_s
+                                # ^ .4 is drag (a force, aka Newtons, so might not work)
+                            if self.vaos_3d[item].top.item_data[old_instance][0] <= -78.4:
+                                self.vaos_3d[item].top.item_data[old_instance][0] = -78.4
+                            if (px, int(numpy.ceil(py + self.vaos_3d[item].top.item_data[old_instance][0] * time_s - 1)), pz) \
+                                    not in self.world:
                                 instance_i = numpy.where(
-                                    (self.vaos_3d[item].sides[vao].transform[:, 3, 0] == instance[3, 0]) &
-                                    (self.vaos_3d[item].sides[vao].transform[:, 3, 1] == instance[3, 1]) &
-                                    (self.vaos_3d[item].sides[vao].transform[:, 3, 2] == instance[3, 2])
+                                    (self.vaos_3d[item].top.transform[:, 3, 0] == instance[3, 0]) &
+                                    (self.vaos_3d[item].top.transform[:, 3, 1] == instance[3, 1]) &
+                                    (self.vaos_3d[item].top.transform[:, 3, 2] == instance[3, 2])
                                 )
                                 if len(instance_i[0]) > 1:
+                                    for vao in self.vaos_3d[item].sides:
+                                        self.vaos_3d[item].sides[vao].transform = numpy.delete(
+                                            self.vaos_3d[item].sides[vao].transform, instance_i[0][1:], 0
+                                        )
+                                    instance_i = instance_i[0][0]
+                                for vao in self.vaos_3d[item].sides:
+                                    self.vaos_3d[item].sides[vao].transform[instance_i, 3, 1] += \
+                                        self.vaos_3d[item].top.item_data[old_instance][0] * time_s
+                                pos = instance[3].copy()
+                                new_instance = (int(pos[0] - 0.5), int(pos[1]), int(pos[2] - 0.5))
+                                if new_instance in self.vaos_3d[item].top.item_data and \
+                                        new_instance != old_instance:
+                                    for vao in self.vaos_3d[item].sides:
+                                        self.vaos_3d[item].sides[vao].transform = numpy.delete(
+                                            self.vaos_3d[item].sides[vao].transform, instance_i[0][0], 0
+                                        )
+                                    self.vaos_3d[item].top.item_data[new_instance][1] += \
+                                        self.vaos_3d[item].top.item_data[old_instance][1]
+                                    del self.vaos_3d[item].top.item_data[old_instance]
+                                elif new_instance != old_instance:
+                                    self.vaos_3d[item].top.item_data[new_instance] = \
+                                        self.vaos_3d[item].top.item_data[old_instance]
+                                    del self.vaos_3d[item].top.item_data[old_instance]
+                            else:
+                                instance_i = numpy.where(
+                                    (self.vaos_3d[item].top.transform[:, 3, 0] == instance[3, 0]) &
+                                    (self.vaos_3d[item].top.transform[:, 3, 1] == instance[3, 1]) &
+                                    (self.vaos_3d[item].top.transform[:, 3, 2] == instance[3, 2])
+                                )
+                                if len(instance_i[0]) > 1:
+                                    for vao in self.vaos_3d[item].sides:
+                                        self.vaos_3d[item].sides[vao].transform = numpy.delete(
+                                            self.vaos_3d[item].sides[vao].transform, instance_i[0][1:], 0
+                                        )
+                                    instance_i = instance_i[0][0]
+                                for vao in self.vaos_3d[item].sides:
+                                    self.vaos_3d[item].sides[vao].transform[instance_i, 3, 1] = \
+                                        round(float(self.vaos_3d[item].sides[vao].transform[instance_i, 3, 1]))
+                                pos = instance[3].copy()
+                                new_instance = (int(pos[0] - 0.5), int(pos[1]), int(pos[2] - 0.5))
+                                if new_instance in self.vaos_3d[item].top.item_data and \
+                                        new_instance != old_instance:
+                                    for vao in self.vaos_3d[item].sides:
+                                        self.vaos_3d[item].sides[vao].transform = numpy.delete(
+                                            self.vaos_3d[item].sides[vao].transform, instance_i[0][0], 0
+                                        )
+                                    self.vaos_3d[item].top.item_data[new_instance][1] += \
+                                        self.vaos_3d[item].top.item_data[old_instance][1]
+                                    del self.vaos_3d[item].top.item_data[old_instance]
+                                elif new_instance != old_instance:
+                                    self.vaos_3d[item].top.item_data[new_instance] = \
+                                        self.vaos_3d[item].top.item_data[old_instance]
+                                    del self.vaos_3d[item].top.item_data[old_instance]
+                                self.vaos_3d[item].top.item_data[new_instance][0] = 0
+                        elif (px, int(numpy.ceil(py - 1)), pz) in self.world:
+                            instance_i = numpy.where(
+                                (self.vaos_3d[item].top.transform[:, 3, 0] == instance[3, 0]) &
+                                (self.vaos_3d[item].top.transform[:, 3, 1] == instance[3, 1]) &
+                                (self.vaos_3d[item].top.transform[:, 3, 2] == instance[3, 2])
+                            )
+                            if len(instance_i[0]) > 1:
+                                for vao in self.vaos_3d[item].sides:
                                     self.vaos_3d[item].sides[vao].transform = numpy.delete(
                                         self.vaos_3d[item].sides[vao].transform, instance_i[0][1:], 0
                                     )
-                                    instance_i = instance_i[0][0]
-                                self.vaos_3d[item].sides[vao].transform[instance_i, 3, 1] = \
-                                    round(float(self.vaos_3d[item].sides[vao].transform[instance_i, 3, 1]))
-                                pos = instance[3].copy()
-                                new_instance = (int(pos[0] - 0.5), int(pos[1]), int(pos[2] - 0.5))
-                                if new_instance in self.vaos_3d[item].sides[vao].item_data and \
-                                        new_instance != old_instance:
-                                    self.vaos_3d[item].sides[vao].transform = numpy.delete(
-                                        self.vaos_3d[item].sides[vao].transform, instance_i[0][0], 0
-                                    )
-                                    self.vaos_3d[item].sides[vao].item_data[new_instance][1] += \
-                                        self.vaos_3d[item].sides[vao].item_data[old_instance][1]
-                                    del self.vaos_3d[item].sides[vao].item_data[old_instance]
-                                elif new_instance != old_instance:
-                                    self.vaos_3d[item].sides[vao].item_data[new_instance] = \
-                                        self.vaos_3d[item].sides[vao].item_data[old_instance]
-                                    del self.vaos_3d[item].sides[vao].item_data[old_instance]
-                                self.vaos_3d[item].sides[vao].item_data[new_instance][0] = 0
+                                instance_i = instance_i[0][0]
+                            self.vaos_3d[item].top.transform[instance_i, 3, 1] = \
+                                round(float(self.vaos_3d[item].top.transform[instance_i, 3, 1]))
                             pos = instance[3].copy()
-                            pos[0] -= 0.5
-                            pos[2] -= 0.5
-                            pos = tuple(int(value) for value in pos[:3])
-                            if (int(cx), int(cy), int(cz)) == pos:
-                                add_item = self.vaos_3d[item].sides[vao].item_data[new_instance][1]
-                                del self.vaos_3d[item].sides[vao].item_data[new_instance]
-                                self.vaos_3d[item].sides[vao].transform = numpy.delete(
-                                    self.vaos_3d[item].sides[vao].transform, numpy.where(
-                                        (self.vaos_3d[item].sides[vao].transform[:, 3, 0] == instance[3, 0]) &
-                                        (self.vaos_3d[item].sides[vao].transform[:, 3, 1] == instance[3, 1]) &
-                                        (self.vaos_3d[item].sides[vao].transform[:, 3, 2] == instance[3, 2])
-                                    ), 0
+                            new_instance = (int(pos[0] - 0.5), int(pos[1]), int(pos[2] - 0.5))
+                            if new_instance in self.vaos_3d[item].top.item_data and \
+                                    new_instance != old_instance:
+                                self.vaos_3d[item].top.transform = numpy.delete(
+                                    self.vaos_3d[item].top.transform, instance_i[0][0], 0
                                 )
-                        self.vaos_3d[item].sides[vao].transform_update()
+                                self.vaos_3d[item].top.item_data[new_instance][1] += \
+                                    self.vaos_3d[item].top.item_data[old_instance][1]
+                                del self.vaos_3d[item].top.item_data[old_instance]
+                            elif new_instance != old_instance:
+                                self.vaos_3d[item].top.item_data[new_instance] = \
+                                    self.vaos_3d[item].top.item_data[old_instance]
+                                del self.vaos_3d[item].top.item_data[old_instance]
+                            self.vaos_3d[item].top.item_data[new_instance][0] = 0
+                        pos = instance[3].copy()
+                        pos[0] -= 0.5
+                        pos[2] -= 0.5
+                        pos = tuple(int(value) for value in pos[:3])
+                        if (int(cx), int(cy), int(cz)) == pos:
+                            add_item = self.vaos_3d[item].top.item_data[new_instance][1]
+                            del self.vaos_3d[item].top.item_data[new_instance]
+                            instance_pos = numpy.where(
+                                    (self.vaos_3d[item].top.transform[:, 3, 0] == instance[3, 0]) &
+                                    (self.vaos_3d[item].top.transform[:, 3, 1] == instance[3, 1]) &
+                                    (self.vaos_3d[item].top.transform[:, 3, 2] == instance[3, 2])
+                                )
+                            for vao in self.vaos_3d[item].sides:
+                                self.vaos_3d[item].sides[vao].transform = numpy.delete(
+                                    self.vaos_3d[item].sides[vao].transform, instance_pos, 0
+                                )
                 for _ in range(int(round(add_item))):
                     self.inventory_add(self.vaos_3d[item].front.texture_name)
         if (int(cx + 0.3), int(numpy.ceil(cy - 1)), int(cz + 0.3)) not in self.world and \
@@ -1256,7 +1263,8 @@ class App:
                             self.vaos_3d[f"{block_name}_item"].sides[vao].transform = numpy.array(
                                 [numpy.dot(pyrr.matrix44.create_from_scale([0.5, 0.5, 0.5]), pyrr.matrix44.create_from_translation(pos))], dtype=numpy.float32
                             )
-                        self.vaos_3d[f"{block_name}_item"].sides[vao].item_data[tuple(int(value) for value in self.highlighted[3, :3])] = [8.95142 / 2, 1]
+                        if vao == "top":
+                            self.vaos_3d[f"{block_name}_item"].sides[vao].item_data[tuple(int(value) for value in self.highlighted[3, :3])] = [8.95142 / 2, 1]
                         self.vaos_3d[f"{block_name}_item"].sides[vao].transform_update()
                     px, py, pz = self.highlighted[3, :3]
                     px, py, pz = int(px), int(py), int(pz)
@@ -1614,6 +1622,20 @@ class Entity:
 
         self.transform_vbo = glGenBuffers(1)
         self.transform = transform
+        glBindBuffer(GL_ARRAY_BUFFER, self.transform_vbo)
+        glEnableVertexAttribArray(2)
+        glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 64, ctypes.c_void_p(0))
+        glVertexAttribDivisor(2, 1)
+        glEnableVertexAttribArray(3)
+        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 64, ctypes.c_void_p(16))
+        glVertexAttribDivisor(3, 1)
+        glEnableVertexAttribArray(4)
+        glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 64, ctypes.c_void_p(32))
+        glVertexAttribDivisor(4, 1)
+        glEnableVertexAttribArray(5)
+        glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 64, ctypes.c_void_p(48))
+        glVertexAttribDivisor(5, 1)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
         if self.transform is not None:
             self.transform_update(self.transform)
 
@@ -1630,19 +1652,7 @@ class Entity:
             self.transform = transform
         glBindVertexArray(self.vao)
         glBindBuffer(GL_ARRAY_BUFFER, self.transform_vbo)
-        glBufferData(GL_ARRAY_BUFFER, self.transform.nbytes, self.transform.flatten(), GL_STATIC_DRAW)
-        glEnableVertexAttribArray(2)
-        glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, self.transform.flatten().itemsize * 16, ctypes.c_void_p(0))
-        glVertexAttribDivisor(2, 1)
-        glEnableVertexAttribArray(3)
-        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, self.transform.flatten().itemsize * 16, ctypes.c_void_p(16))
-        glVertexAttribDivisor(3, 1)
-        glEnableVertexAttribArray(4)
-        glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, self.transform.flatten().itemsize * 16, ctypes.c_void_p(32))
-        glVertexAttribDivisor(4, 1)
-        glEnableVertexAttribArray(5)
-        glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, self.transform.flatten().itemsize * 16, ctypes.c_void_p(48))
-        glVertexAttribDivisor(5, 1)
+        glBufferData(GL_ARRAY_BUFFER, self.transform.nbytes, self.transform.flatten(), GL_DYNAMIC_DRAW)
         glBindBuffer(GL_ARRAY_BUFFER, 0)
         glBindVertexArray(0)
 
