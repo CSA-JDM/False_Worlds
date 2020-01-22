@@ -179,10 +179,10 @@ class App:
         self.highlighted = None
         self.breaking_block = None
         self.selected_block = ""
-        self.chunks = dict()
         self.world = dict()
         self.vaos_2d = dict()
         self.vaos_3d = dict()
+        self.chunks = list()
         block_list = list()
         self.keys = [False] * 1024
         self.active_bar = 1
@@ -485,75 +485,52 @@ class App:
         # region World Initialization
         self.chunks.clear()
         self.world.clear()
-        size = [1024, 1024]
-        scale = 100.0
-        octaves = 6
-        persistence = 0.5
-        lacunarity = 2.0
         base = random.randint(0, 1024)
-        y_values = numpy.zeros(size, dtype=numpy.int32)
-        for i in range(size[0]):
-            for j in range(size[1]):
-                y_values[i][j] = int(noise.pnoise2(
-                    i / scale, j / scale, octaves=octaves, persistence=persistence, lacunarity=lacunarity,
-                    repeatx=size[0], repeaty=size[1], base=base
-                ) * 100 + 60)
+        self.y_values = numpy.zeros([1024, 1024], dtype=numpy.int32)
+        for i in range(1024):
+            for j in range(1024):
+                self.y_values[i][j] = int(noise.pnoise2(i / 100.0, j / 100.0, octaves=6, persistence=0.5, lacunarity=2.0,
+                                                        repeatx=1024, repeaty=1024, base=base) * 100 + 60)
         for cx, cz in [[x, z] for x in range(-2, 2) for z in range(-2, 2)]:
+            self.chunks.append((cx, cz))
+            self.world[(cx, cz)] = dict()
             for x in range(cx * 16, cx * 16 + 16):
                 for z in range(cz * 16, cz * 16 + 16):
-                    self.world[(x, 0, z)] = ["bedrock", ["right", "left", "top", "bottom", "front", "back"]]
-                    for y in range(1, y_values[x + 512][z + 512] - 5):
-                        self.world[(x, y, z)] = ["stone", ["right", "left", "top", "bottom", "front", "back"]]
-                    for y in range(y_values[x + 512][z + 512] - 5, y_values[x + 512][z + 512]):
-                        self.world[(x, y, z)] = ["dirt", ["right", "left", "top", "bottom", "front", "back"]]
-                    self.world[(x, y_values[x + 512][z + 512], z)] = \
-                        ["grass", ["right", "left", "top", "bottom", "front", "back"]]
-        for pos in self.world:
-            o_pos_dict = {"right": (pos[0] - 1, *pos[1:]),
-                          "left": (pos[0] + 1, *pos[1:]),
-                          "top": (pos[0], pos[1] - 1, pos[2]),
-                          "bottom": (pos[0], pos[1] + 1, pos[2]),
-                          "front": (*pos[0:2], pos[2] - 1),
-                          "back": (*pos[0:2], pos[2] + 1)}
-            for o_pos in o_pos_dict:
-                if o_pos_dict[o_pos] in self.world:
-                    self.world[o_pos_dict[o_pos]][1].remove(o_pos)
-        transform = {"bedrock": {"right": numpy.array([], dtype=numpy.float32),
-                                     "left": numpy.array([], dtype=numpy.float32),
-                                     "top": numpy.array([], dtype=numpy.float32),
-                                     "bottom": numpy.array([], dtype=numpy.float32),
-                                     "front": numpy.array([], dtype=numpy.float32),
-                                     "back": numpy.array([], dtype=numpy.float32)},
-                         "stone": {"right": numpy.array([], dtype=numpy.float32),
-                                   "left": numpy.array([], dtype=numpy.float32),
-                                   "top": numpy.array([], dtype=numpy.float32),
-                                   "bottom": numpy.array([], dtype=numpy.float32),
-                                   "front": numpy.array([], dtype=numpy.float32),
-                                   "back": numpy.array([], dtype=numpy.float32)},
-                         "dirt": {"right": numpy.array([], dtype=numpy.float32),
-                                  "left": numpy.array([], dtype=numpy.float32),
-                                  "top": numpy.array([], dtype=numpy.float32),
-                                  "bottom": numpy.array([], dtype=numpy.float32),
-                                  "front": numpy.array([], dtype=numpy.float32),
-                                  "back": numpy.array([], dtype=numpy.float32)},
-                         "grass": {"right": numpy.array([], dtype=numpy.float32),
-                                   "left": numpy.array([], dtype=numpy.float32),
-                                   "top": numpy.array([], dtype=numpy.float32),
-                                   "bottom": numpy.array([], dtype=numpy.float32),
-                                   "front": numpy.array([], dtype=numpy.float32),
-                                   "back": numpy.array([], dtype=numpy.float32)}}
-        for pos in self.world:
-            for side in self.world[pos][1]:
-                if len(transform[self.world[pos][0]][side]) > 0:
-                    transform[self.world[pos][0]][side] = \
-                        numpy.append(
-                            transform[self.world[pos][0]][side], numpy.array([pyrr.matrix44.create_from_translation(pos)], dtype=numpy.float32), 0
-                        )
-                else:
-                    transform[self.world[pos][0]][side] = numpy.array([pyrr.matrix44.create_from_translation(pos)], dtype=numpy.float32)
+                    self.world[(cx, cz)][(x, 0, z)] = ["bedrock", ["right", "left", "top", "bottom", "front", "back"]]
+                    for y in range(1, self.y_values[x + 512][z + 512] - 5):
+                        self.world[(cx, cz)][(x, y, z)] = ["stone", ["right", "left", "top", "bottom", "front", "back"]]
+                    for y in range(self.y_values[x + 512][z + 512] - 5, self.y_values[x + 512][z + 512]):
+                        self.world[(cx, cz)][(x, y, z)] = ["dirt", ["right", "left", "top", "bottom", "front", "back"]]
+                    self.world[(cx, cz)][(x, self.y_values[x + 512][z + 512], z)] = ["grass", ["right", "left", "top", "bottom", "front", "back"]]
+        for chunk in self.world:
+            for pos in self.world[chunk]:
+                o_pos_dict = {"right": (pos[0] - 1, *pos[1:]),
+                              "left": (pos[0] + 1, *pos[1:]),
+                              "top": (pos[0], pos[1] - 1, pos[2]),
+                              "bottom": (pos[0], pos[1] + 1, pos[2]),
+                              "front": (*pos[0:2], pos[2] - 1),
+                              "back": (*pos[0:2], pos[2] + 1)}
+                for o_pos in o_pos_dict:
+                    if o_pos_dict[o_pos] in self.world[chunk]:
+                        self.world[chunk][o_pos_dict[o_pos]][1].remove(o_pos)
+        transform = {"bedrock": {"right": None, "left": None, "top": None, "bottom": None, "front": None, "back": None},
+                     "stone": {"right": None, "left": None, "top": None, "bottom": None, "front": None, "back": None},
+                     "dirt": {"right": None, "left": None, "top": None, "bottom": None, "front": None, "back": None},
+                     "grass": {"right": None, "left": None, "top": None, "bottom": None, "front": None, "back": None}}
+        for chunk in self.world:
+            for pos in self.world[chunk]:
+                for side in self.world[chunk][pos][1]:
+                    if transform[self.world[chunk][pos][0]][side] is not None:
+                        transform[self.world[chunk][pos][0]][side] = \
+                            numpy.append(
+                                transform[self.world[chunk][pos][0]][side], numpy.array([pyrr.matrix44.create_from_translation(pos)], dtype=numpy.float32), 0
+                            )
+                    else:
+                        transform[self.world[chunk][pos][0]][side] = numpy.array([pyrr.matrix44.create_from_translation(pos)], dtype=numpy.float32)
         for cube in transform:
             for side in transform[cube]:
-                self.vaos_3d[cube].sides[side].transform_update(transform[cube][side])
+                if transform[cube][side] is not None:
+                    self.vaos_3d[cube].sides[side].transform_update(transform[cube][side])
         # endregion
 
         self.char.remove_text("Loading...", [548.0, 600.0, -0.4], 4)
@@ -638,6 +615,8 @@ class App:
         if self.player.crouching:
             cy += 0.3
         cx, cy, cz = self.check_value(cx, 0.3), self.check_value(cy, 0), self.check_value(cz, 0.3)
+        current_chunk = int(self.check_value(cx / 16, 0)), int(self.check_value(cz / 16, 0))
+        nearby_chunks = [(current_chunk[0] + px, current_chunk[1] + pz) for px in range(-1, 2) for pz in range(-1, 2)]
         for item in self.vaos_3d:
             if "item" in item:
                 add_item = 0
@@ -649,14 +628,14 @@ class App:
                         pos[2] -= 0.5
                         pos = (int(pos[0]), float(pos[1]), int(pos[2]))
                         px, py, pz = pos
-                        if (px, int(numpy.ceil(py - 1)), pz) not in self.world:
+                        if (px, int(numpy.ceil(py - 1)), pz) not in self.world[current_chunk]:
                             if self.vaos_3d[item].top.item_data[instance_i_, 0] > -78.4:
                                 self.vaos_3d[item].top.item_data[instance_i_, 0] -= (32 - .4) * time_s
                                 # ^ .4 is drag (a force, aka Newtons, so might not work)
                             if self.vaos_3d[item].top.item_data[instance_i_, 0] <= -78.4:
                                 self.vaos_3d[item].top.item_data[instance_i_, 0] = -78.4
                             if (px, int(numpy.ceil(py + self.vaos_3d[item].top.item_data[instance_i_, 0] * time_s - 1)), pz) \
-                                    not in self.world:
+                                    not in self.world[current_chunk]:
                                 for vao in self.vaos_3d[item].sides:
                                     self.vaos_3d[item].sides[vao].transform[instance_i_, 3, 1] += \
                                         self.vaos_3d[item].top.item_data[instance_i_, 0] * time_s
@@ -664,7 +643,7 @@ class App:
                                 self.vaos_3d[item].top.item_data[instance_i_, 0] = 0
                                 self.vaos_3d[item].top.transform[instance_i_, 3, 1] = \
                                     round(float(self.vaos_3d[item].top.transform[instance_i_, 3, 1]))
-                        elif (px, int(numpy.ceil(py - 1)), pz) in self.world:
+                        elif (px, int(numpy.ceil(py - 1)), pz) in self.world[current_chunk]:
                             self.vaos_3d[item].top.item_data[instance_i_, 0] = 0
                             self.vaos_3d[item].top.transform[instance_i_, 3, 1] = \
                                 round(float(self.vaos_3d[item].top.transform[instance_i_, 3, 1]))
@@ -683,30 +662,30 @@ class App:
                         )
                 for _ in range(int(round(add_item))):
                     self.inventory_add(self.vaos_3d[item].front.texture_name)
-        if (int(cx + 0.3), int(numpy.ceil(cy - 1)), int(cz + 0.3)) not in self.world and \
-                (int(cx + 0.3), int(numpy.ceil(cy - 1)), int(cz - 0.3)) not in self.world and \
-                (int(cx - 0.3), int(numpy.ceil(cy - 1)), int(cz + 0.3)) not in self.world and \
-                (int(cx - 0.3), int(numpy.ceil(cy - 1)), int(cz - 0.3)) not in self.world and not self.player.flying:
+        if (int(cx + 0.3), int(numpy.ceil(cy - 1)), int(cz + 0.3)) not in self.world[current_chunk] and \
+                (int(cx + 0.3), int(numpy.ceil(cy - 1)), int(cz - 0.3)) not in self.world[current_chunk] and \
+                (int(cx - 0.3), int(numpy.ceil(cy - 1)), int(cz + 0.3)) not in self.world[current_chunk] and \
+                (int(cx - 0.3), int(numpy.ceil(cy - 1)), int(cz - 0.3)) not in self.world[current_chunk] and not self.player.flying:
             if self.player.air_vel > -78.4:
                 self.player.air_vel -= (32 - .4) * time_s  # .4 is drag (a force, aka Newtons, so might not work)
             if self.player.air_vel <= -78.4:
                 self.player.air_vel = -78.4
             if (int(cx + 0.3), int(numpy.ceil(cy + self.player.air_vel * time_s - 1)), int(cz + 0.3)) \
-                    not in self.world and \
+                    not in self.world[current_chunk] and \
                     (int(cx + 0.3), int(numpy.ceil(cy + self.player.air_vel * time_s - 1)), int(cz - 0.3)) \
-                    not in self.world and \
+                    not in self.world[current_chunk] and \
                     (int(cx - 0.3), int(numpy.ceil(cy + self.player.air_vel * time_s - 1)), int(cz + 0.3)) \
-                    not in self.world and \
+                    not in self.world[current_chunk] and \
                     (int(cx - 0.3), int(numpy.ceil(cy + self.player.air_vel * time_s - 1)), int(cz - 0.3)) \
-                    not in self.world:
+                    not in self.world[current_chunk]:
                 if (int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_vel * time_s - 1)), int(cz + 0.3)) \
-                        not in self.world and \
+                        not in self.world[current_chunk] and \
                         (int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_vel * time_s - 1)), int(cz - 0.3)) \
-                        not in self.world and \
+                        not in self.world[current_chunk] and \
                         (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_vel * time_s - 1)), int(cz + 0.3)) \
-                        not in self.world and \
+                        not in self.world[current_chunk] and \
                         (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_vel * time_s - 1)), int(cz - 0.3)) \
-                        not in self.world:
+                        not in self.world[current_chunk]:
                     self.player.process_keyboard("UP", self.player.air_vel * time_s)
                 else:
                     if not self.player.crouching:
@@ -724,10 +703,10 @@ class App:
                 self.player.air_vel = 0
                 self.player.jumping = False
                 self.player.flying = False
-        elif not ((int(cx + 0.3), int(numpy.ceil(cy - 1)), int(cz + 0.3)) not in self.world and
-                  (int(cx + 0.3), int(numpy.ceil(cy - 1)), int(cz - 0.3)) not in self.world and
-                  (int(cx - 0.3), int(numpy.ceil(cy - 1)), int(cz + 0.3)) not in self.world and
-                  (int(cx - 0.3), int(numpy.ceil(cy - 1)), int(cz - 0.3)) not in self.world):
+        elif not ((int(cx + 0.3), int(numpy.ceil(cy - 1)), int(cz + 0.3)) not in self.world[current_chunk] and
+                  (int(cx + 0.3), int(numpy.ceil(cy - 1)), int(cz - 0.3)) not in self.world[current_chunk] and
+                  (int(cx - 0.3), int(numpy.ceil(cy - 1)), int(cz + 0.3)) not in self.world[current_chunk] and
+                  (int(cx - 0.3), int(numpy.ceil(cy - 1)), int(cz - 0.3)) not in self.world[current_chunk]):
             if not self.player.crouching:
                 self.player.pos[1] = round(self.player.pos[1])
             else:
@@ -736,13 +715,13 @@ class App:
             self.player.jumping = False
             self.player.flying = False
         elif not ((int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_vel - 1)), int(cz + 0.3))
-                  not in self.world and
+                  not in self.world[current_chunk] and
                   (int(cx + 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_vel - 1)), int(cz - 0.3))
-                  not in self.world and
+                  not in self.world[current_chunk] and
                   (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_vel - 1)), int(cz + 0.3))
-                  not in self.world and
+                  not in self.world[current_chunk] and
                   (int(cx - 0.3), int(numpy.ceil(cy + 1.85 + self.player.air_vel - 1)), int(cz - 0.3))
-                  not in self.world):
+                  not in self.world[current_chunk]):
             if not self.player.crouching:
                 self.player.pos[1] = int(self.player.pos[1]) + 0.149
             else:
@@ -757,6 +736,50 @@ class App:
             self.player.fly_delay = 0
         if self.player.pos[1] < -64 and self.in_game:
             self.player.pos = pyrr.Vector3([0.0, 101, 0.0])
+        for chunk in nearby_chunks:
+            if chunk not in self.chunks:
+                self.chunks.append(chunk)
+                self.world[chunk] = dict()
+                for x in range(chunk[0] * 16, chunk[0] * 16 + 16):
+                    for z in range(chunk[1] * 16, chunk[1] * 16 + 16):
+                        self.world[chunk][(x, 0, z)] = ["bedrock", ["right", "left", "top", "bottom", "front", "back"]]
+                        for y in range(1, self.y_values[x + 512][z + 512] - 5):
+                            self.world[chunk][(x, y, z)] = ["stone", ["right", "left", "top", "bottom", "front", "back"]]
+                        for y in range(self.y_values[x + 512][z + 512] - 5, self.y_values[x + 512][z + 512]):
+                            self.world[chunk][(x, y, z)] = ["dirt", ["right", "left", "top", "bottom", "front", "back"]]
+                        self.world[chunk][(x, self.y_values[x + 512][z + 512], z)] = ["grass", ["right", "left", "top", "bottom", "front", "back"]]
+                for pos in self.world[chunk]:
+                    o_pos_dict = {"right": (pos[0] - 1, *pos[1:]),
+                                  "left": (pos[0] + 1, *pos[1:]),
+                                  "top": (pos[0], pos[1] - 1, pos[2]),
+                                  "bottom": (pos[0], pos[1] + 1, pos[2]),
+                                  "front": (*pos[0:2], pos[2] - 1),
+                                  "back": (*pos[0:2], pos[2] + 1)}
+                    for o_pos in o_pos_dict:
+                        if o_pos_dict[o_pos] in self.world[chunk]:
+                            if o_pos in self.world[chunk][o_pos_dict[o_pos]][1]:
+                                self.world[chunk][o_pos_dict[o_pos]][1].remove(o_pos)
+                transform = {
+                    "bedrock": {"right": None, "left": None, "top": None, "bottom": None, "front": None, "back": None},
+                    "stone": {"right": None, "left": None, "top": None, "bottom": None, "front": None, "back": None},
+                    "dirt": {"right": None, "left": None, "top": None, "bottom": None, "front": None, "back": None},
+                    "grass": {"right": None, "left": None, "top": None, "bottom": None, "front": None, "back": None}}
+                for pos in self.world[chunk]:
+                    for side in self.world[chunk][pos][1]:
+                        if transform[self.world[chunk][pos][0]][side] is not None:
+                            transform[self.world[chunk][pos][0]][side] = \
+                                numpy.append(
+                                    transform[self.world[chunk][pos][0]][side],
+                                    numpy.array([pyrr.matrix44.create_from_translation(pos)], dtype=numpy.float32), 0
+                                )
+                        else:
+                            transform[self.world[chunk][pos][0]][side] = numpy.array([pyrr.matrix44.create_from_translation(pos)],
+                                                                                     dtype=numpy.float32)
+                for cube in transform:
+                    for side in transform[cube]:
+                        if transform[cube][side] is not None:
+                            self.vaos_3d[cube].sides[side].transform_update(numpy.append(self.vaos_3d[cube].sides[side].transform, transform[cube][side], 0))
+
 
     def check_pos(self, axis, distance):
         x, y, z = self.player.pos
