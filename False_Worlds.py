@@ -317,6 +317,9 @@ class App:
                     self.e_ray_wor[1] += 1.62
                     self.e_ray_wor = [int(self.check_value(axis, 0)) for axis in self.e_ray_wor]
                     self.ray_i = 4
+                    x, y, z = self.player.pos
+                    current_chunk = int(self.check_value(x / 16, 0)), int(self.check_value(z / 16, 0))
+                    nearby_chunks = [(current_chunk[0] + px, current_chunk[1] + pz) for px in range(-1, 2) for pz in range(-1, 2)]
                     air = True
                     values = list()
                     for pos in range(3):
@@ -338,11 +341,12 @@ class App:
                                     ray_cam = numpy.array([int(self.check_value(axis, 0)) for axis in ray_cam])
                                 except (OverflowError, ValueError):
                                     pass
-                                if tuple(ray_cam) in self.world and 0 < values[-1] < self.ray_i:
-                                    air = False
-                                    self.highlighted = numpy.array(pyrr.matrix44.create_from_translation(ray_cam), dtype=numpy.float32)
-                                    self.ray_cam = ray_cam.copy()
-                                    self.ray_i = values[-1]
+                                for chunk in nearby_chunks:
+                                    if tuple(ray_cam) in self.world[chunk] and 0 < values[-1] < self.ray_i:
+                                        air = False
+                                        self.highlighted = numpy.array(pyrr.matrix44.create_from_translation(ray_cam), dtype=numpy.float32)
+                                        self.ray_cam = ray_cam.copy()
+                                        self.ray_i = values[-1]
                                 # Copied portion below may not be necessary; a different fix probably exists
                                 ray_cam = orig_ray_cam.copy()
                                 if ray_cam[pos] < 0:
@@ -351,11 +355,12 @@ class App:
                                     ray_cam = numpy.array([int(self.check_value(axis, 0)) for axis in ray_cam])
                                 except (OverflowError, ValueError):
                                     pass
-                                if tuple(ray_cam) in self.world and 0 < values[-1] < self.ray_i:
-                                    air = False
-                                    self.highlighted = numpy.array(pyrr.matrix44.create_from_translation(ray_cam), dtype=numpy.float32)
-                                    self.ray_cam = ray_cam.copy()
-                                    self.ray_i = values[-1]
+                                for chunk in nearby_chunks:
+                                    if tuple(ray_cam) in self.world[chunk] and 0 < values[-1] < self.ray_i:
+                                        air = False
+                                        self.highlighted = numpy.array(pyrr.matrix44.create_from_translation(ray_cam), dtype=numpy.float32)
+                                        self.ray_cam = ray_cam.copy()
+                                        self.ray_i = values[-1]
                     if self.highlighted is not None and air:
                         self.highlighted = None
                 if self.in_inventory:
@@ -582,6 +587,7 @@ class App:
                 self.player.process_keyboard("SIDE", net_movement)
         x, y, z = self.player.pos
         x, y, z = self.check_value(x, 0.3), self.check_value(y, 0), self.check_value(z, 0.3)
+        current_chunk = int(self.check_value(x / 16, 0)), int(self.check_value(z / 16, 0))
         if self.keys[glfw.KEY_SPACE]:
             if self.player.fly_delay > 0 and not self.player.holding_jump:
                 self.player.flying = not self.player.flying
@@ -591,10 +597,10 @@ class App:
                 self.player.fly_delay = 0.25
             self.player.holding_jump = True
             if not self.player.jumping and not self.player.flying and \
-                    ((int(x + 0.3), int(numpy.ceil(y - 1)), int(z + 0.3)) in self.world or
-                     (int(x + 0.3), int(numpy.ceil(y - 1)), int(z - 0.3)) in self.world or
-                     (int(x - 0.3), int(numpy.ceil(y - 1)), int(z + 0.3)) in self.world or
-                     (int(x - 0.3), int(numpy.ceil(y - 1)), int(z - 0.3)) in self.world):
+                    ((int(x + 0.3), int(numpy.ceil(y - 1)), int(z + 0.3)) in self.world[current_chunk] or
+                     (int(x + 0.3), int(numpy.ceil(y - 1)), int(z - 0.3)) in self.world[current_chunk] or
+                     (int(x - 0.3), int(numpy.ceil(y - 1)), int(z + 0.3)) in self.world[current_chunk] or
+                     (int(x - 0.3), int(numpy.ceil(y - 1)), int(z - 0.3)) in self.world[current_chunk]):
                 self.player.air_vel = 8.95142
                 self.player.process_keyboard("UP", self.player.air_vel * time_s)
                 self.player.jumping = True
@@ -628,25 +634,28 @@ class App:
                         pos[2] -= 0.5
                         pos = (int(pos[0]), float(pos[1]), int(pos[2]))
                         px, py, pz = pos
-                        if (px, int(numpy.ceil(py - 1)), pz) not in self.world[current_chunk]:
-                            if self.vaos_3d[item].top.item_data[instance_i_, 0] > -78.4:
-                                self.vaos_3d[item].top.item_data[instance_i_, 0] -= (32 - .4) * time_s
-                                # ^ .4 is drag (a force, aka Newtons, so might not work)
-                            if self.vaos_3d[item].top.item_data[instance_i_, 0] <= -78.4:
-                                self.vaos_3d[item].top.item_data[instance_i_, 0] = -78.4
-                            if (px, int(numpy.ceil(py + self.vaos_3d[item].top.item_data[instance_i_, 0] * time_s - 1)), pz) \
-                                    not in self.world[current_chunk]:
-                                for vao in self.vaos_3d[item].sides:
-                                    self.vaos_3d[item].sides[vao].transform[instance_i_, 3, 1] += \
-                                        self.vaos_3d[item].top.item_data[instance_i_, 0] * time_s
-                            else:
+                        item_chunk = int(self.check_value(px / 16, 0)), int(self.check_value(pz / 16, 0))
+                        item_chunks = [(item_chunk[0] + nx, item_chunk[1] + nz) for nx in range(-1, 2) for nz in range(-1, 2)]
+                        for chunk in item_chunks:
+                            if (px, int(numpy.ceil(py - 1)), pz) not in self.world[chunk]:
+                                if self.vaos_3d[item].top.item_data[instance_i_, 0] > -78.4:
+                                    self.vaos_3d[item].top.item_data[instance_i_, 0] -= ((32 - .4) * time_s) / 9
+                                    # ^ .4 is drag (a force, aka Newtons, so might not work)
+                                if self.vaos_3d[item].top.item_data[instance_i_, 0] <= -78.4:
+                                    self.vaos_3d[item].top.item_data[instance_i_, 0] = -78.4
+                                if (px, int(numpy.ceil(py + self.vaos_3d[item].top.item_data[instance_i_, 0] * time_s - 1)), pz) \
+                                        not in self.world[chunk]:
+                                    for vao in self.vaos_3d[item].sides:
+                                        self.vaos_3d[item].sides[vao].transform[instance_i_, 3, 1] += \
+                                            (self.vaos_3d[item].top.item_data[instance_i_, 0] * time_s) / 9
+                                else:
+                                    self.vaos_3d[item].top.item_data[instance_i_, 0] = 0
+                                    self.vaos_3d[item].top.transform[instance_i_, 3, 1] = \
+                                        round(float(self.vaos_3d[item].top.transform[instance_i_, 3, 1]))
+                            elif (px, int(numpy.ceil(py - 1)), pz) in self.world[chunk]:
                                 self.vaos_3d[item].top.item_data[instance_i_, 0] = 0
                                 self.vaos_3d[item].top.transform[instance_i_, 3, 1] = \
                                     round(float(self.vaos_3d[item].top.transform[instance_i_, 3, 1]))
-                        elif (px, int(numpy.ceil(py - 1)), pz) in self.world[current_chunk]:
-                            self.vaos_3d[item].top.item_data[instance_i_, 0] = 0
-                            self.vaos_3d[item].top.transform[instance_i_, 3, 1] = \
-                                round(float(self.vaos_3d[item].top.transform[instance_i_, 3, 1]))
                         pos = instance[3].copy()
                         pos[0] -= 0.5
                         pos[2] -= 0.5
@@ -780,21 +789,24 @@ class App:
                         if transform[cube][side] is not None:
                             self.vaos_3d[cube].sides[side].transform_update(numpy.append(self.vaos_3d[cube].sides[side].transform, transform[cube][side], 0))
 
-
     def check_pos(self, axis, distance):
         x, y, z = self.player.pos
         if self.player.crouching:
             y += 0.3
         x, y, z = self.check_value(x, 0.3), self.check_value(y, 0), self.check_value(z, 0.3)
+        current_chunk = int(self.check_value(x / 16, 0)), int(self.check_value(z / 16, 0))
+        nearby_chunks = [(current_chunk[0] + px, current_chunk[1] + pz) for px in range(-1, 2) for pz in range(-1, 2)]
         crouch_counter = 0
         for i1, i2 in {(-.3, -.3), (-.3, .3), (.3, -.3), (.3, .3)}:
             ix, iy, iz = int(x + i1), y, int(z + i2)
-            if (ix, int(iy), iz) in self.world or (ix, int(iy + 1), iz) in self.world or \
-                    (ix, int(iy + 1.85), iz) in self.world:
-                self.player.pos[axis] -= distance
-                return
-            elif self.player.crouching and not self.player.flying and not self.player.jumping \
-                    and (ix, int(iy - 1), iz) not in self.world:
+            for chunk in nearby_chunks:
+                if chunk in self.chunks:
+                    if (ix, int(iy), iz) in self.world[chunk] or (ix, int(iy + 1), iz) in self.world[chunk] or \
+                            (ix, int(iy + 1.85), iz) in self.world[chunk]:
+                        self.player.pos[axis] -= distance
+                        return
+            if self.player.crouching and not self.player.flying and not self.player.jumping \
+                    and (ix, int(iy - 1), iz) not in self.world[current_chunk]:
                 crouch_counter += 1
         if crouch_counter >= 4:
             self.player.pos[axis] -= distance
@@ -1151,72 +1163,78 @@ class App:
                 self.breaking_block = self.highlighted
         if mouse_buttons[0]:
             if not self.mouse_visibility and self.highlighted is not None:
+                cx, cy, cz = tuple(self.highlighted[3, :3])
+                current_chunk = int(self.check_value(cx / 16, 0)), int(self.check_value(cz / 16, 0))
+                nearby_chunks = [(current_chunk[0] + px, current_chunk[1] + pz) for px in range(-1, 2) for pz in
+                                 range(-1, 2)]
                 if self.player.break_delay <= 0 and not self.player.breaking:
                     self.player.break_delay = 0.5
                     self.player.breaking = True
                     self.breaking_block = self.highlighted[3, :3]
-                if self.player.break_delay <= 0 and self.player.breaking and \
-                        self.world[tuple(self.highlighted[3, :3])][0] != "bedrock":
-                    pos = self.highlighted[3, :3].copy()
-                    pos[0] += 0.5
-                    pos[1] += (8.95142 / 2) * time_s
-                    pos[2] += 0.5
-                    block_name = self.world[tuple(self.highlighted[3, :3])][0]
-                    for vao in self.vaos_3d[f"{block_name}_item"].sides:
-                        if self.vaos_3d[f"{block_name}_item"].sides[vao].transform is not None:
-                            self.vaos_3d[f"{block_name}_item"].sides[vao].transform = numpy.append(
-                                self.vaos_3d[f"{block_name}_item"].sides[vao].transform,
-                                numpy.array([numpy.dot(pyrr.matrix44.create_from_scale([0.5, 0.5, 0.5]), pyrr.matrix44.create_from_translation(pos))], dtype=numpy.float32), 0
-                            )
-                        else:
-                            self.vaos_3d[f"{block_name}_item"].sides[vao].transform = numpy.array(
-                                [numpy.dot(pyrr.matrix44.create_from_scale([0.5, 0.5, 0.5]), pyrr.matrix44.create_from_translation(pos))], dtype=numpy.float32
-                            )
-                        if vao == "top":
-                            if self.vaos_3d[f"{block_name}_item"].top.item_data is not None:
-                                self.vaos_3d[f"{block_name}_item"].top.item_data = numpy.append(
-                                    self.vaos_3d[f"{block_name}_item"].top.item_data,
-                                    numpy.array([[8.95142 / 2, 1]], dtype=numpy.float32), 0
+                for chunk in nearby_chunks:
+                    if chunk in self.world:
+                        if self.player.break_delay <= 0 and self.player.breaking and tuple(self.highlighted[3, :3]) in self.world[chunk] and \
+                                self.world[chunk][tuple(self.highlighted[3, :3])][0] != "bedrock":
+                            pos = self.highlighted[3, :3].copy()
+                            pos[0] += 0.5
+                            pos[1] += (8.95142 / 2) * time_s
+                            pos[2] += 0.5
+                            block_name = self.world[chunk][tuple(self.highlighted[3, :3])][0]
+                            for vao in self.vaos_3d[f"{block_name}_item"].sides:
+                                if self.vaos_3d[f"{block_name}_item"].sides[vao].transform is not None:
+                                    self.vaos_3d[f"{block_name}_item"].sides[vao].transform = numpy.append(
+                                        self.vaos_3d[f"{block_name}_item"].sides[vao].transform,
+                                        numpy.array([numpy.dot(pyrr.matrix44.create_from_scale([0.5, 0.5, 0.5]), pyrr.matrix44.create_from_translation(pos))], dtype=numpy.float32), 0
+                                    )
+                                else:
+                                    self.vaos_3d[f"{block_name}_item"].sides[vao].transform = numpy.array(
+                                        [numpy.dot(pyrr.matrix44.create_from_scale([0.5, 0.5, 0.5]), pyrr.matrix44.create_from_translation(pos))], dtype=numpy.float32
+                                    )
+                                if vao == "top":
+                                    if self.vaos_3d[f"{block_name}_item"].top.item_data is not None:
+                                        self.vaos_3d[f"{block_name}_item"].top.item_data = numpy.append(
+                                            self.vaos_3d[f"{block_name}_item"].top.item_data,
+                                            numpy.array([[8.95142 / 2, 1]], dtype=numpy.float32), 0
+                                        )
+                                    else:
+                                        self.vaos_3d[f"{block_name}_item"].top.item_data = \
+                                            numpy.array([[8.95142 / 2, 1]], dtype=numpy.float32)
+                                self.vaos_3d[f"{block_name}_item"].sides[vao].transform_update()
+                            px, py, pz = self.highlighted[3, :3]
+                            px, py, pz = int(px), int(py), int(pz)
+                            for side in self.world[chunk][tuple(self.highlighted[3, :3])][1]:
+                                self.vaos_3d[self.world[chunk][tuple(self.highlighted[3, :3])][0]].sides[side].transform = numpy.delete(
+                                    self.vaos_3d[self.world[chunk][tuple(self.highlighted[3, :3])][0]].sides[side].transform,
+                                    numpy.where(
+                                        (self.vaos_3d[self.world[chunk][tuple(self.highlighted[3, :3])][0]].sides[side].transform[:, 3, 0] ==
+                                         self.highlighted[3, :3][0]) &
+                                        (self.vaos_3d[self.world[chunk][tuple(self.highlighted[3, :3])][0]].sides[side].transform[:, 3, 1] ==
+                                         self.highlighted[3, :3][1]) &
+                                        (self.vaos_3d[self.world[chunk][tuple(self.highlighted[3, :3])][0]].sides[side].transform[:, 3, 2] ==
+                                         self.highlighted[3, :3][2])
+                                    ), 0
                                 )
-                            else:
-                                self.vaos_3d[f"{block_name}_item"].top.item_data = \
-                                    numpy.array([[8.95142 / 2, 1]], dtype=numpy.float32)
-                        self.vaos_3d[f"{block_name}_item"].sides[vao].transform_update()
-                    px, py, pz = self.highlighted[3, :3]
-                    px, py, pz = int(px), int(py), int(pz)
-                    for side in self.world[tuple(self.highlighted[3, :3])][1]:
-                        self.vaos_3d[self.world[tuple(self.highlighted[3, :3])][0]].sides[side].transform = numpy.delete(
-                            self.vaos_3d[self.world[tuple(self.highlighted[3, :3])][0]].sides[side].transform,
-                            numpy.where(
-                                (self.vaos_3d[self.world[tuple(self.highlighted[3, :3])][0]].sides[side].transform[:, 3, 0] ==
-                                 self.highlighted[3, :3][0]) &
-                                (self.vaos_3d[self.world[tuple(self.highlighted[3, :3])][0]].sides[side].transform[:, 3, 1] ==
-                                 self.highlighted[3, :3][1]) &
-                                (self.vaos_3d[self.world[tuple(self.highlighted[3, :3])][0]].sides[side].transform[:, 3, 2] ==
-                                 self.highlighted[3, :3][2])
-                            ), 0
-                        )
-                        self.vaos_3d[self.world[tuple(self.highlighted[3, :3])][0]].sides[side].transform_update()
-                    del self.world[tuple(self.highlighted[3, :3])]
-                    side_values = {"left": (px + 1, py, pz), "bottom": (px, py + 1, pz), "back": (px, py, pz + 1),
-                                   "right": (px - 1, py, pz), "top": (px, py - 1, pz), "front": (px, py, pz - 1)}
-                    for side in side_values:
-                        x, y, z = side_values[side]
-                        if (x, y, z) in self.world:
-                            self.world[(x, y, z)][1].append(side)
-                            if self.vaos_3d[self.world[(x, y, z)][0]].sides[side] is not None and \
-                                    len(self.vaos_3d[self.world[(x, y, z)][0]].sides[side].transform) > 0:
-                                self.vaos_3d[self.world[(x, y, z)][0]].sides[side].transform = numpy.append(
-                                    self.vaos_3d[self.world[(x, y, z)][0]].sides[side].transform,
-                                    numpy.array([pyrr.matrix44.create_from_translation([x, y, z])], dtype=numpy.float32), 0
-                                )
-                            else:
-                                self.vaos_3d[self.world[(x, y, z)][0]].sides[side].transform = \
-                                    numpy.array([pyrr.matrix44.create_from_translation([x, y, z])], dtype=numpy.float32)
-                            self.vaos_3d[self.world[(x, y, z)][0]].sides[side].transform_update()
-                    self.highlighted = None
-                    self.breaking_block = None
-                    self.player.breaking = False
+                                self.vaos_3d[self.world[chunk][tuple(self.highlighted[3, :3])][0]].sides[side].transform_update()
+                            del self.world[chunk][tuple(self.highlighted[3, :3])]
+                            side_values = {"left": (px + 1, py, pz), "bottom": (px, py + 1, pz), "back": (px, py, pz + 1),
+                                           "right": (px - 1, py, pz), "top": (px, py - 1, pz), "front": (px, py, pz - 1)}
+                            for side in side_values:
+                                x, y, z = side_values[side]
+                                if (x, y, z) in self.world[chunk]:
+                                    self.world[chunk][(x, y, z)][1].append(side)
+                                    if self.vaos_3d[self.world[chunk][(x, y, z)][0]].sides[side] is not None and \
+                                            self.vaos_3d[self.world[chunk][(x, y, z)][0]].sides[side].transform is not None:
+                                        self.vaos_3d[self.world[chunk][(x, y, z)][0]].sides[side].transform = numpy.append(
+                                            self.vaos_3d[self.world[chunk][(x, y, z)][0]].sides[side].transform,
+                                            numpy.array([pyrr.matrix44.create_from_translation([x, y, z])], dtype=numpy.float32), 0
+                                        )
+                                    else:
+                                        self.vaos_3d[self.world[chunk][(x, y, z)][0]].sides[side].transform = \
+                                            numpy.array([pyrr.matrix44.create_from_translation([x, y, z])], dtype=numpy.float32)
+                                    self.vaos_3d[self.world[chunk][(x, y, z)][0]].sides[side].transform_update()
+                            self.highlighted = None
+                            self.breaking_block = None
+                            self.player.breaking = False
             else:
                 self.player.break_delay = 0
                 self.player.breaking = False
